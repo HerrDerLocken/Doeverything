@@ -331,6 +331,7 @@ version = "0.1.0"
 dependencies = [
  "ciborium",
  "doeverything-core",
+ "getrandom",
  "rusqlite",
  "serde",
  "tempfile",

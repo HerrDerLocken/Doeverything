@@ -14,6 +14,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 List<TemplateInfo> templates() =>
     RustLib.instance.api.crateApiTrackerTemplates();
 
+DatabaseState databaseState({required String dbPath}) =>
+    RustLib.instance.api.crateApiTrackerDatabaseState(dbPath: dbPath);
+
+/// Neuer zufälliger 32-Byte-Schlüssel für die Datenbank.
+Uint8List generateDbKey() =>
+    RustLib.instance.api.crateApiTrackerGenerateDbKey();
+
 /// Deutsche Schreibweise, z. B. `1.234,56 €`.
 String formatAmount({required PlatformInt64 minor, required String currency}) =>
     RustLib.instance.api.crateApiTrackerFormatAmount(
@@ -72,9 +79,13 @@ abstract class Tracker implements RustOpaqueInterface {
   /// Buchungen nach Monat gruppiert, mit Summen.
   Future<LedgerData> ledger({required String collectionId});
 
-  /// Öffnet oder erzeugt die Datenbank. Beim ersten Start wird der Space "Privat" angelegt.
-  static Future<Tracker> open({required String dbPath}) =>
-      RustLib.instance.api.crateApiTrackerTrackerOpen(dbPath: dbPath);
+  /// Öffnet oder erzeugt die verschlüsselte Datenbank. Eine unverschlüsselte Datenbank älterer
+  /// App-Versionen wird dabei einmalig verschlüsselt. Beim ersten Start wird der Space "Privat" angelegt.
+  static Future<Tracker> open({
+    required String dbPath,
+    required List<int> key,
+  }) =>
+      RustLib.instance.api.crateApiTrackerTrackerOpen(dbPath: dbPath, key: key);
 
   Future<void> renameCollection({
     required String collectionId,
@@ -196,6 +207,9 @@ enum CollectionView {
   /// Buchungen mit Betrag und Datum (Haushaltsbuch).
   ledger,
 }
+
+/// Zustand der Datenbankdatei, bevor ein Schlüssel gelesen oder erzeugt wird.
+enum DatabaseState { missing, plaintext, encrypted }
 
 class ItemInfo {
   final String id;

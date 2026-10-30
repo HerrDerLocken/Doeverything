@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1934005703;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -545057465;
 
 // Section: executor
 
@@ -635,11 +635,12 @@ fn wire__crate__api__tracker__Tracker_open_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_db_path = <String>::sse_decode(&mut deserializer);
+            let api_key = <Vec<u8>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::tracker::Tracker::open(api_db_path)?;
+                        let output_ok = crate::api::tracker::Tracker::open(api_db_path, api_key)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -993,6 +994,38 @@ fn wire__crate__api__tracker__Tracker_update_item_impl(
         },
     )
 }
+fn wire__crate__api__tracker__database_state_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "database_state",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_db_path = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                (move || {
+                    let output_ok = crate::api::tracker::database_state(api_db_path)?;
+                    std::result::Result::Ok(output_ok)
+                })(),
+            )
+        },
+    )
+}
 fn wire__crate__api__tracker__format_amount_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1020,6 +1053,35 @@ fn wire__crate__api__tracker__format_amount_impl(
             transform_result_sse::<_, ()>((move || {
                 let output_ok =
                     Ok::<_, ()>(crate::api::tracker::format_amount(api_minor, api_currency))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
+fn wire__crate__api__tracker__generate_db_key_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "generate_db_key",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::tracker::generate_db_key())?;
                 std::result::Result::Ok(output_ok)
             })())
         },
@@ -1224,6 +1286,19 @@ impl SseDecode for crate::api::tracker::CollectionView {
             0 => crate::api::tracker::CollectionView::Checklist,
             1 => crate::api::tracker::CollectionView::Ledger,
             _ => unreachable!("Invalid variant for CollectionView: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::tracker::DatabaseState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tracker::DatabaseState::Missing,
+            1 => crate::api::tracker::DatabaseState::Plaintext,
+            2 => crate::api::tracker::DatabaseState::Encrypted,
+            _ => unreachable!("Invalid variant for DatabaseState: {}", inner),
         };
     }
 }
@@ -1542,7 +1617,7 @@ fn pde_ffi_dispatcher_primary_impl(
         17 => {
             wire__crate__api__tracker__Tracker_update_item_impl(port, ptr, rust_vec_len, data_len)
         }
-        19 => wire__crate__api__tracker__init_app_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__tracker__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1555,9 +1630,11 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        18 => wire__crate__api__tracker__format_amount_impl(ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__tracker__parse_amount_impl(ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__tracker__templates_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__tracker__database_state_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__tracker__format_amount_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__tracker__generate_db_key_impl(ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__tracker__parse_amount_impl(ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__tracker__templates_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1666,6 +1743,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::CollectionView>
     for crate::api::tracker::CollectionView
 {
     fn into_into_dart(self) -> crate::api::tracker::CollectionView {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::DatabaseState {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Missing => 0.into_dart(),
+            Self::Plaintext => 1.into_dart(),
+            Self::Encrypted => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::DatabaseState
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::DatabaseState>
+    for crate::api::tracker::DatabaseState
+{
+    fn into_into_dart(self) -> crate::api::tracker::DatabaseState {
         self
     }
 }
@@ -1858,6 +1957,23 @@ impl SseEncode for crate::api::tracker::CollectionView {
             match self {
                 crate::api::tracker::CollectionView::Checklist => 0,
                 crate::api::tracker::CollectionView::Ledger => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::tracker::DatabaseState {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tracker::DatabaseState::Missing => 0,
+                crate::api::tracker::DatabaseState::Plaintext => 1,
+                crate::api::tracker::DatabaseState::Encrypted => 2,
                 _ => {
                     unimplemented!("");
                 }

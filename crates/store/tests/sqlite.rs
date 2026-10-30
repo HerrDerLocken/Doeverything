@@ -1,5 +1,5 @@
 use doeverything_core::{Kind, MemoryStore, Replica, Store, SysField, Value};
-use doeverything_store::{SqliteStore, StoreError};
+use doeverything_store::{DbFile, SqliteStore, StoreError, inspect};
 
 /// Dieselben Konfliktfälle wie für die Referenzimplementierung.
 mod konformitaet {
@@ -131,5 +131,83 @@ fn neueres_schema_wird_abgelehnt() {
     assert!(matches!(
         SqliteStore::open(&pfad, None),
         Err(StoreError::SchemaTooNew(99))
+    ));
+}
+
+#[test]
+fn dateizustand_erkennen() {
+    let dir = tempfile::tempdir().unwrap();
+    let pfad = dir.path().join("x.sqlite");
+    assert_eq!(inspect(&pfad).unwrap(), DbFile::Missing);
+    std::fs::write(&pfad, b"").unwrap();
+    assert_eq!(inspect(&pfad).unwrap(), DbFile::Missing);
+    std::fs::remove_file(&pfad).unwrap();
+    drop(SqliteStore::open(&pfad, None).unwrap());
+    assert_eq!(inspect(&pfad).unwrap(), DbFile::Plaintext);
+    std::fs::write(&pfad, [0x8a; 4096]).unwrap();
+    assert_eq!(inspect(&pfad).unwrap(), DbFile::Encrypted);
+}
+
+#[test]
+fn schluessel_sind_zufaellig() {
+    let a = doeverything_store::generate_key();
+    let b = doeverything_store::generate_key();
+    assert_ne!(a, b);
+    assert_ne!(a, [0; 32]);
+}
+
+#[cfg(feature = "sqlcipher")]
+#[test]
+fn klartext_datenbank_verschluesseln() {
+    use doeverything_store::encrypt_plaintext;
+
+    let dir = tempfile::tempdir().unwrap();
+    let pfad = dir.path().join("alt.sqlite");
+    let mut r = Replica::open(SqliteStore::open(&pfad, None).unwrap()).unwrap();
+    let geraet = r.device();
+    let space = r.create_space("Privat", 1000).unwrap();
+    r.transact(space, 1000, |tx| {
+        tx.set(space, SysField::Name, "MEINE DATEN");
+    })
+    .unwrap();
+    let vorher = r.store().entities(space).unwrap();
+    drop(r);
+
+    let schluessel = doeverything_store::generate_key();
+    assert!(matches!(
+        encrypt_plaintext(dir.path().join("gibtsnicht.sqlite"), &schluessel),
+        Err(StoreError::UnexpectedFileState(DbFile::Missing))
+    ));
+    encrypt_plaintext(&pfad, &schluessel).unwrap();
+
+    assert_eq!(inspect(&pfad).unwrap(), DbFile::Encrypted);
+    let roh = std::fs::read(&pfad).unwrap();
+    assert!(
+        !roh.windows(11).any(|w| w == b"MEINE DATEN"),
+        "Klartext in Datei"
+    );
+    let reste: Vec<_> = std::fs::read_dir(dir.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n != "alt.sqlite")
+        .collect();
+    assert_eq!(
+        reste,
+        Vec::<String>::new(),
+        "keine Klartext-WAL oder Temp-Datei übrig"
+    );
+
+    assert!(SqliteStore::open(&pfad, None).is_err());
+    let r = Replica::open(SqliteStore::open(&pfad, Some(&schluessel)).unwrap()).unwrap();
+    assert_eq!(r.device(), geraet, "Geräte-ID übernommen");
+    assert_eq!(
+        r.store().entities(space).unwrap(),
+        vorher,
+        "alle Daten übernommen"
+    );
+
+    assert!(matches!(
+        encrypt_plaintext(&pfad, &schluessel),
+        Err(StoreError::UnexpectedFileState(DbFile::Encrypted))
     ));
 }

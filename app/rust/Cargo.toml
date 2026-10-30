@@ -11,7 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 anyhow = "1.0.104"
 doeverything-core = { version = "0.1.0", path = "../../crates/core" }
-doeverything-store = { version = "0.1.0", path = "../../crates/store" }
+doeverything-store = { version = "0.1.0", path = "../../crates/store", features = ["sqlcipher"] }
 flutter_rust_bridge = "=2.13.0"
 
 [lints.rust]

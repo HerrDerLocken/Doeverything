@@ -83,6 +83,9 @@ pub enum StoreError {
     EncryptionUnavailable,
     /// Die Datenbank stammt von einer neueren App-Version.
     SchemaTooNew(i64),
+    Io(std::io::Error),
+    /// Die Datei ist nicht im erwarteten Zustand (z. B. Verschlüsseln einer bereits verschlüsselten Datei).
+    UnexpectedFileState(DbFile),
 }
 
 impl fmt::Display for StoreError {
@@ -99,6 +102,10 @@ impl fmt::Display for StoreError {
                 f,
                 "Datenbank-Schema {v} ist neuer als unterstützt ({SCHEMA_VERSION})"
             ),
+            Self::Io(e) => write!(f, "Dateizugriff: {e}"),
+            Self::UnexpectedFileState(state) => {
+                write!(f, "Datenbankdatei ist im Zustand {state:?}")
+            }
         }
     }
 }
@@ -107,8 +114,15 @@ impl std::error::Error for StoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Sqlite(e) => Some(e),
+            Self::Io(e) => Some(e),
             _ => None,
         }
+    }
+}
+
+impl From<std::io::Error> for StoreError {
+    fn from(e: std::io::Error) -> Self {
+        Self::Io(e)
     }
 }
 
@@ -189,16 +203,119 @@ impl SqliteStore {
     }
 }
 
+/// Zustand einer Datenbankdatei, ohne sie zu öffnen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DbFile {
+    /// Existiert nicht oder ist leer.
+    Missing,
+    /// Unverschlüsselte SQLite-Datenbank.
+    Plaintext,
+    /// Kein SQLite-Klartext-Header, also (vermutlich) per `SQLCipher` verschlüsselt.
+    Encrypted,
+}
+
+/// Erkennt am Datei-Header, ob eine Datenbank verschlüsselt ist.
+///
+/// # Errors
+/// Wenn die Datei existiert, aber nicht gelesen werden kann.
+pub fn inspect(path: impl AsRef<Path>) -> Result<DbFile> {
+    use std::io::Read;
+    let mut header = [0u8; 16];
+    let mut file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(DbFile::Missing),
+        Err(e) => return Err(e.into()),
+    };
+    let read = file.read(&mut header)?;
+    Ok(match read {
+        0 => DbFile::Missing,
+        _ if &header[..read] == b"SQLite format 3\0" => DbFile::Plaintext,
+        _ => DbFile::Encrypted,
+    })
+}
+
+/// Neuer zufälliger Datenbankschlüssel aus dem Zufallsgenerator des Betriebssystems.
+///
+/// # Panics
+/// Wenn das Betriebssystem keine Zufallszahlen liefert (dann ist keine sichere Verschlüsselung möglich).
+pub fn generate_key() -> [u8; 32] {
+    let mut key = [0u8; 32];
+    getrandom::fill(&mut key).expect("Zufallsgenerator des Betriebssystems nicht verfügbar");
+    key
+}
+
 #[cfg(feature = "sqlcipher")]
-fn apply_key(conn: &Connection, key: &[u8; 32]) -> Result<()> {
+fn key_literal(key: &[u8; 32]) -> String {
     use std::fmt::Write;
     let mut hex = String::with_capacity(64);
     for b in key {
         write!(hex, "{b:02x}").expect("String-Write schlägt nicht fehl");
     }
     // Rohschlüssel-Syntax von SQLCipher: kein Passwort-KDF, der Schlüssel ist bereits zufällig.
-    conn.execute_batch(&format!("PRAGMA key = \"x'{hex}'\";"))?;
+    format!("\"x'{hex}'\"")
+}
+
+#[cfg(feature = "sqlcipher")]
+fn apply_key(conn: &Connection, key: &[u8; 32]) -> Result<()> {
+    conn.execute_batch(&format!("PRAGMA key = {};", key_literal(key)))?;
     Ok(())
+}
+
+/// Wandelt eine unverschlüsselte Datenbank in eine verschlüsselte um.
+///
+/// Ablauf: WAL zurückschreiben, per `sqlcipher_export` in eine Nachbardatei kopieren, diese mit
+/// dem Schlüssel probeweise öffnen und erst dann atomar über das Original schieben. Bricht der
+/// Vorgang vorher ab, bleibt das Original unverändert.
+///
+/// # Errors
+/// [`StoreError::UnexpectedFileState`], wenn die Datei nicht unverschlüsselt ist.
+#[cfg(feature = "sqlcipher")]
+pub fn encrypt_plaintext(path: impl AsRef<Path>, key: &[u8; 32]) -> Result<()> {
+    let path = path.as_ref();
+    let state = inspect(path)?;
+    if state != DbFile::Plaintext {
+        return Err(StoreError::UnexpectedFileState(state));
+    }
+    let tmp = sibling(path, ".encrypting");
+    remove_if_exists(&tmp)?;
+
+    {
+        let conn = Connection::open(path)?;
+        conn.query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))?;
+        let version: i64 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        let tmp_sql = tmp.to_string_lossy().replace('\'', "''");
+        conn.execute_batch(&format!(
+            "ATTACH DATABASE '{tmp_sql}' AS encrypted KEY {};",
+            key_literal(key)
+        ))?;
+        conn.query_row("SELECT sqlcipher_export('encrypted')", [], |_| Ok(()))?;
+        conn.execute_batch(&format!(
+            "PRAGMA encrypted.user_version = {version}; DETACH DATABASE encrypted;"
+        ))?;
+    }
+
+    // Probe: lässt sich die Kopie mit dem Schlüssel öffnen?
+    drop(SqliteStore::open(&tmp, Some(key))?);
+    std::fs::rename(&tmp, path)?;
+    // Die alte (leere) WAL gehört zur Klartext-Datei und darf nicht auf die neue angewendet werden.
+    remove_if_exists(&sibling(path, "-wal"))?;
+    remove_if_exists(&sibling(path, "-shm"))?;
+    Ok(())
+}
+
+#[cfg(feature = "sqlcipher")]
+fn sibling(path: &Path, suffix: &str) -> std::path::PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    name.into()
+}
+
+#[cfg(feature = "sqlcipher")]
+fn remove_if_exists(path: &Path) -> Result<()> {
+    match std::fs::remove_file(path) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
 }
 
 #[cfg(not(feature = "sqlcipher"))]

@@ -1,11 +1,27 @@
 import 'dart:io';
 
+import 'package:doeverything/database.dart';
 import 'package:doeverything/main.dart';
 import 'package:doeverything/src/rust/api/tracker.dart';
 import 'package:doeverything/src/rust/frb_generated.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+
+/// Schlüsselspeicher im Arbeitsspeicher, damit Tests nicht den echten des Systems verwenden.
+class MemoryKeyStore implements KeyStore {
+  String? value;
+  int writes = 0;
+
+  @override
+  Future<String?> read() async => value;
+
+  @override
+  Future<void> write(String v) async {
+    value = v;
+    writes++;
+  }
+}
 
 /// Wartet zusätzlich auf Rust-Aufrufe: `pumpAndSettle` kennt nur Animationen,
 /// nicht Futures, die auf einem anderen Thread fertig werden.
@@ -30,8 +46,11 @@ void main() {
   testWidgets('Einkaufsliste anlegen, Artikel hinzufügen und abhaken', (
     tester,
   ) async {
-    final tracker = await Tracker.open(dbPath: '${dir.path}/test.sqlite');
-    await tester.pumpWidget(DoeverythingApp(tracker: tracker));
+    final tracker = await Tracker.open(
+      dbPath: '${dir.path}/test.sqlite',
+      key: generateDbKey(),
+    );
+    await tester.pumpWidget(appWith(tracker));
     await settle(tester);
     expect(find.text('Noch keine Listen'), findsOneWidget);
 
@@ -72,8 +91,11 @@ void main() {
   testWidgets('Haushaltsbuch: Einnahme und Ausgabe buchen, Saldo prüfen', (
     tester,
   ) async {
-    final tracker = await Tracker.open(dbPath: '${dir.path}/finanzen.sqlite');
-    await tester.pumpWidget(DoeverythingApp(tracker: tracker));
+    final tracker = await Tracker.open(
+      dbPath: '${dir.path}/finanzen.sqlite',
+      key: generateDbKey(),
+    );
+    await tester.pumpWidget(appWith(tracker));
     await settle(tester);
 
     await tester.tap(find.text('Neue Liste'));
@@ -127,4 +149,53 @@ void main() {
     await settle(tester);
     expect(find.textContaining('Diesen Monat: 987,66'), findsOneWidget);
   });
+
+  testWidgets(
+    'Schlüssel wird beim ersten Start angelegt und danach verwendet',
+    (tester) async {
+      final pfad = '${dir.path}/schluessel.sqlite';
+      final keys = MemoryKeyStore();
+
+      final erster = await openTracker(dbPath: pfad, keys: keys);
+      expect(keys.writes, 1);
+      expect(databaseState(dbPath: pfad), DatabaseState.encrypted);
+      await erster.createCollection(name: 'Geheim', templateId: 'todo@1');
+      erster.dispose();
+
+      final zweiter = await openTracker(dbPath: pfad, keys: keys);
+      expect(
+        keys.writes,
+        1,
+        reason: 'vorhandener Schlüssel wird wiederverwendet',
+      );
+      final listen = await zweiter.collections(today: '2026-10-30');
+      expect(listen.single.name, 'Geheim');
+      zweiter.dispose();
+
+      // Schlüssel weg (z. B. Schlüsselbund zurückgesetzt): nichts überschreiben
+      final ohne = MemoryKeyStore();
+      await expectLater(
+        openTracker(dbPath: pfad, keys: ohne),
+        throwsA(isA<KeyMissingException>()),
+      );
+      expect(
+        ohne.writes,
+        0,
+        reason: 'kein neuer Schlüssel für vorhandene Daten',
+      );
+
+      // Falscher Schlüssel: Fehler statt Absturz oder Datenverlust
+      final falsch = MemoryKeyStore()
+        ..value = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+      await expectLater(
+        openTracker(dbPath: pfad, keys: falsch),
+        throwsA(anything),
+      );
+      final nochmal = await openTracker(dbPath: pfad, keys: keys);
+      expect(
+        (await nochmal.collections(today: '2026-10-30')).single.name,
+        'Geheim',
+      );
+    },
+  );
 }

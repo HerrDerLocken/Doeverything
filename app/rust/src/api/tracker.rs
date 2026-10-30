@@ -11,7 +11,7 @@ use doeverything_core::ledger::{self, Date};
 use doeverything_core::money;
 use doeverything_core::templates::{self, enum_options, field_with_role, Role};
 use doeverything_core::{Entity, EntityId, FieldKey, Kind, Replica, Store, SysField, Value};
-use doeverything_store::SqliteStore;
+use doeverything_store::{DbFile, SqliteStore};
 use flutter_rust_bridge::frb;
 
 #[frb(init)]
@@ -99,6 +99,28 @@ pub fn templates() -> Vec<TemplateInfo> {
             name: t.name.to_owned(),
         })
         .collect()
+}
+
+/// Zustand der Datenbankdatei, bevor ein Schlüssel gelesen oder erzeugt wird.
+pub enum DatabaseState {
+    Missing,
+    Plaintext,
+    Encrypted,
+}
+
+#[frb(sync)]
+pub fn database_state(db_path: String) -> Result<DatabaseState> {
+    Ok(match doeverything_store::inspect(&db_path)? {
+        DbFile::Missing => DatabaseState::Missing,
+        DbFile::Plaintext => DatabaseState::Plaintext,
+        DbFile::Encrypted => DatabaseState::Encrypted,
+    })
+}
+
+/// Neuer zufälliger 32-Byte-Schlüssel für die Datenbank.
+#[frb(sync)]
+pub fn generate_db_key() -> Vec<u8> {
+    doeverything_store::generate_key().to_vec()
 }
 
 /// Deutsche Schreibweise, z. B. `1.234,56 €`.
@@ -197,10 +219,18 @@ impl Fields {
 }
 
 impl Tracker {
-    /// Öffnet oder erzeugt die Datenbank. Beim ersten Start wird der Space "Privat" angelegt.
-    pub fn open(db_path: String) -> Result<Tracker> {
-        let store = SqliteStore::open(&db_path, None)
-            .with_context(|| format!("Datenbank {db_path} öffnen"))?;
+    /// Öffnet oder erzeugt die verschlüsselte Datenbank. Eine unverschlüsselte Datenbank älterer
+    /// App-Versionen wird dabei einmalig verschlüsselt. Beim ersten Start wird der Space "Privat" angelegt.
+    pub fn open(db_path: String, key: Vec<u8>) -> Result<Tracker> {
+        let key: [u8; 32] = key
+            .try_into()
+            .map_err(|k: Vec<u8>| anyhow!("Schlüssel hat {} statt 32 Bytes", k.len()))?;
+        if doeverything_store::inspect(&db_path)? == DbFile::Plaintext {
+            doeverything_store::encrypt_plaintext(&db_path, &key)
+                .with_context(|| format!("Datenbank {db_path} verschlüsseln"))?;
+        }
+        let store = SqliteStore::open(&db_path, Some(&key))
+            .with_context(|| format!("Datenbank {db_path} öffnen (falscher Schlüssel?)"))?;
         let mut replica = Replica::open(store)?;
         let space = match replica.store().spaces()?.first() {
             Some(space) => *space,
@@ -690,7 +720,7 @@ mod tests {
 
     fn tracker() -> (tempfile_dir::Dir, Tracker) {
         let dir = tempfile_dir::Dir::new();
-        let t = Tracker::open(dir.path("test.sqlite")).unwrap();
+        let t = Tracker::open(dir.path("test.sqlite"), generate_db_key()).unwrap();
         (dir, t)
     }
 
@@ -770,13 +800,22 @@ mod tests {
     fn daten_bleiben_nach_neustart() {
         let dir = tempfile_dir::Dir::new();
         let pfad = dir.path("persist.sqlite");
-        let t = Tracker::open(pfad.clone()).unwrap();
+        let key = generate_db_key();
+        let t = Tracker::open(pfad.clone(), key.clone()).unwrap();
         let todo = t.create_collection("Uni".into(), "todo@1".into()).unwrap();
         t.add_item(todo.clone(), "Abgabe Blatt 3".into(), None)
             .unwrap();
         drop(t);
 
-        let t = Tracker::open(pfad).unwrap();
+        assert!(
+            Tracker::open(pfad.clone(), generate_db_key()).is_err(),
+            "falscher Schlüssel"
+        );
+        assert!(matches!(
+            database_state(pfad.clone()).unwrap(),
+            DatabaseState::Encrypted
+        ));
+        let t = Tracker::open(pfad, key).unwrap();
         let listen = t.collections("2026-10-30".into()).unwrap();
         assert_eq!(listen.len(), 1, "kein zweiter Space/keine doppelte Liste");
         assert_eq!(t.items(todo).unwrap()[0].title, "Abgabe Blatt 3");
@@ -926,5 +965,45 @@ mod tests {
     fn betraege_ueber_die_bruecke() {
         assert_eq!(parse_amount("12,34".into()), Some(1234));
         assert_eq!(format_amount(-1234, "EUR".into()), "-12,34\u{a0}€");
+    }
+
+    #[test]
+    fn alte_klartext_datenbank_wird_uebernommen() {
+        let dir = tempfile_dir::Dir::new();
+        let pfad = dir.path("alt.sqlite");
+        // Stand vor der Verschlüsselung: Daten ohne Schlüssel angelegt
+        let mut r = Replica::open(SqliteStore::open(&pfad, None).unwrap()).unwrap();
+        let space = r.create_space("Privat", 1000).unwrap();
+        let liste = r
+            .transact(space, 1000, |tx| {
+                templates::instantiate(tx, space, &templates::TODO, "Alt", None)
+            })
+            .unwrap();
+        drop(r);
+        assert!(matches!(
+            database_state(pfad.clone()).unwrap(),
+            DatabaseState::Plaintext
+        ));
+
+        let key = generate_db_key();
+        assert!(
+            Tracker::open(pfad.clone(), vec![1, 2, 3]).is_err(),
+            "kurzer Schlüssel"
+        );
+        assert!(
+            matches!(
+                database_state(pfad.clone()).unwrap(),
+                DatabaseState::Plaintext
+            ),
+            "nichts angefasst"
+        );
+
+        let t = Tracker::open(pfad.clone(), key).unwrap();
+        assert!(matches!(
+            database_state(pfad).unwrap(),
+            DatabaseState::Encrypted
+        ));
+        let listen = t.collections("2026-10-30".into()).unwrap();
+        assert_eq!((listen.len(), listen[0].id.clone()), (1, liste.to_string()));
     }
 }

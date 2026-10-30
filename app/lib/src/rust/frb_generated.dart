@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1934005703;
+  int get rustContentHash => -545057465;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -139,7 +139,10 @@ abstract class RustLibApi extends BaseApi {
     required String collectionId,
   });
 
-  Future<Tracker> crateApiTrackerTrackerOpen({required String dbPath});
+  Future<Tracker> crateApiTrackerTrackerOpen({
+    required String dbPath,
+    required List<int> key,
+  });
 
   Future<void> crateApiTrackerTrackerRenameCollection({
     required Tracker that,
@@ -179,10 +182,14 @@ abstract class RustLibApi extends BaseApi {
     String? quantity,
   });
 
+  DatabaseState crateApiTrackerDatabaseState({required String dbPath});
+
   String crateApiTrackerFormatAmount({
     required PlatformInt64 minor,
     required String currency,
   });
+
+  Uint8List crateApiTrackerGenerateDbKey();
 
   Future<void> crateApiTrackerInitApp();
 
@@ -616,12 +623,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Tracker> crateApiTrackerTrackerOpen({required String dbPath}) {
+  Future<Tracker> crateApiTrackerTrackerOpen({
+    required String dbPath,
+    required List<int> key,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(dbPath, serializer);
+          sse_encode_list_prim_u_8_loose(key, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -635,14 +646,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiTrackerTrackerOpenConstMeta,
-        argValues: [dbPath],
+        argValues: [dbPath, key],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiTrackerTrackerOpenConstMeta =>
-      const TaskConstMeta(debugName: "Tracker_open", argNames: ["dbPath"]);
+  TaskConstMeta get kCrateApiTrackerTrackerOpenConstMeta => const TaskConstMeta(
+    debugName: "Tracker_open",
+    argNames: ["dbPath", "key"],
+  );
 
   @override
   Future<void> crateApiTrackerTrackerRenameCollection({
@@ -896,6 +909,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  DatabaseState crateApiTrackerDatabaseState({required String dbPath}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(dbPath, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_database_state,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerDatabaseStateConstMeta,
+        argValues: [dbPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerDatabaseStateConstMeta =>
+      const TaskConstMeta(debugName: "database_state", argNames: ["dbPath"]);
+
+  @override
   String crateApiTrackerFormatAmount({
     required PlatformInt64 minor,
     required String currency,
@@ -906,7 +942,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_i_64(minor, serializer);
           sse_encode_String(currency, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -926,6 +962,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Uint8List crateApiTrackerGenerateDbKey() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTrackerGenerateDbKeyConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerGenerateDbKeyConstMeta =>
+      const TaskConstMeta(debugName: "generate_db_key", argNames: []);
+
+  @override
   Future<void> crateApiTrackerInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -934,7 +992,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 21,
             port: port_,
           );
         },
@@ -959,7 +1017,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(text, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_i_64,
@@ -981,7 +1039,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_template_info,
@@ -1105,6 +1163,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DatabaseState dco_decode_database_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DatabaseState.values[raw as int];
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1199,6 +1263,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<MonthView> dco_decode_list_month_view(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_month_view).toList();
+  }
+
+  @protected
+  List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
   }
 
   @protected
@@ -1387,6 +1457,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DatabaseState sse_decode_database_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return DatabaseState.values[inner];
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -1531,6 +1608,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_month_view(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getUint8List(len_);
   }
 
   @protected
@@ -1737,6 +1821,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_database_state(DatabaseState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -1855,6 +1945,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_month_view(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_prim_u_8_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putUint8List(
+      self is Uint8List ? self : Uint8List.fromList(self),
+    );
   }
 
   @protected

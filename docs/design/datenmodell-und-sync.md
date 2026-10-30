@@ -263,6 +263,14 @@ Regeln:
 - **Ein Changeset = eine SQL-Transaktion** (Log, Version Vector, Ops gemeinsam oder gar nicht).
 - **Migrationen** über `PRAGMA user_version`; eine Datenbank einer neueren App-Version wird nicht geöffnet.
 - **Verschlüsselung**: Feature `sqlcipher`, 32-Byte-Rohschlüssel aus dem Schlüsselspeicher des Betriebssystems.
+  Ablauf beim App-Start (`app/lib/database.dart`):
+  1. Schlüssel vorhanden → Datenbank damit öffnen.
+  2. Kein Schlüssel, Datei verschlüsselt → Fehlerbildschirm, **nichts** anlegen oder überschreiben.
+  3. Kein Schlüssel, Datei fehlt oder ist Klartext → neuen Schlüssel erzeugen, speichern, gegenlesen,
+     erst dann öffnen. Klartext älterer Versionen wird per `sqlcipher_export` in eine Nachbardatei
+     kopiert, probeweise geöffnet und atomar über das Original geschoben.
+  Geht der Schlüsselspeicher verloren, sind die lokalen Daten nicht mehr lesbar. Abhilfe kommt mit
+  Sync (Daten liegen auf weiteren Geräten) und dem Recovery Key aus Abschnitt 5.1.
 - Jede `Store`-Implementierung muss die Konformitätstests (`konformitaets_tests!`) bestehen.
 
 Abfragen von Views (Filter, Gruppieren, Summen) laufen auf `field_values`. Für große
