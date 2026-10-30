@@ -1,0 +1,8 @@
+{
+  // Alle aus Open VSX, funktionieren in VSCodium
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "tamasfe.even-better-toml"
+  ]
+}

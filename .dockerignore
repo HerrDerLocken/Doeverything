@@ -1,0 +1,7 @@
+# Podman liest .dockerignore ebenfalls
+target
+.git
+.vscode
+docs
+# Das Image bringt seine eigene Toolchain mit; sonst lädt rustup im Build erneut
+rust-toolchain.toml

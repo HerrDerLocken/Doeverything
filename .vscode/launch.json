@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server debuggen",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": { "args": ["build", "-p", "doeverything-server"] },
+      "env": { "DOEVERYTHING_BIND": "127.0.0.1:8080" }
+    },
+    {
+      "name": "Core-Tests debuggen",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": { "args": ["test", "--no-run", "-p", "doeverything-core"] }
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+# Lokal: `podman compose up --build` · Mit Docker: `docker compose up --build`
+services:
+  server:
+    build: .
+    image: localhost/doeverything-server:dev
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
