@@ -1,6 +1,6 @@
 # Datenmodell & Sync-Protokoll
 
-Status: Entwurf v0.1 · 2026-10-30
+Status: Entwurf v0.2 · 2026-10-30
 
 Dieses Dokument legt fest, wie Daten lokal strukturiert sind, wie Änderungen
 zwischen Geräten ausgetauscht werden (Server und LAN) und wie sie verschlüsselt
@@ -235,54 +235,26 @@ struct Changeset {
 
 ## 4. Lokale Speicherung (SQLite, per SQLCipher verschlüsselt)
 
-```sql
--- Rohes Log aller bekannten Changesets (eigene und fremde)
-CREATE TABLE changesets (
-  space_id   BLOB NOT NULL,
-  device_id  BLOB NOT NULL,
-  seq        INTEGER NOT NULL,
-  payload    BLOB NOT NULL,              -- Klartext-CBOR (DB selbst ist verschlüsselt)
-  PRIMARY KEY (space_id, device_id, seq)
-);
+Implementiert in `crates/store` (Schema: `SCHEMA_V1` in `crates/store/src/lib.rs`).
 
--- Materialisierter Zustand
-CREATE TABLE entities (
-  id         BLOB PRIMARY KEY,
-  space_id   BLOB NOT NULL,
-  kind       INTEGER NOT NULL,
-  parent_id  BLOB,
-  deleted    INTEGER NOT NULL DEFAULT 0  -- Cache von _deleted
-);
-CREATE INDEX entities_parent ON entities(parent_id, deleted);
+| Tabelle | Inhalt |
+|---|---|
+| `meta` | Geräte-ID u. Ä. (Schlüssel/Wert) |
+| `changesets` | rohes Log aller bekannten Changesets (eigene und fremde), Ops als CBOR, plus `max_hlc` damit die Uhr nach einem Neustart monoton bleibt |
+| `entities` | ID, Space, `kind` (`NULL` = nur Sets, Create fehlt noch), Elternteil, `deleted` als Cache von `_deleted` |
+| `field_values` | (Entity, Feldschlüssel) → CBOR-Wert + HLC (26 Byte, per `memcmp` vergleichbar) |
+| `version_vector` | pro Space und Gerät die höchste lückenlos vorhandene `seq` |
+| `sync_state` | Sync-Cursor je Gegenstelle (Server) |
 
-CREATE TABLE field_values (
-  entity_id  BLOB NOT NULL,
-  field_key  BLOB NOT NULL,              -- Systemfeld-Code oder Field-EntityId
-  value      BLOB NOT NULL,              -- CBOR-kodiertes Value
-  hlc        BLOB NOT NULL,              -- 26 Byte, memcmp-vergleichbar
-  PRIMARY KEY (entity_id, field_key)
-);
+Regeln:
+- **Last-Writer-Wins direkt in SQL**: `INSERT … ON CONFLICT DO UPDATE … WHERE excluded.hlc > field_values.hlc`.
+- **Ein Changeset = eine SQL-Transaktion** (Log, Version Vector, Ops gemeinsam oder gar nicht).
+- **Migrationen** über `PRAGMA user_version`; eine Datenbank einer neueren App-Version wird nicht geöffnet.
+- **Verschlüsselung**: Feature `sqlcipher`, 32-Byte-Rohschlüssel aus dem Schlüsselspeicher des Betriebssystems.
+- Jede `Store`-Implementierung muss die Konformitätstests (`konformitaets_tests!`) bestehen.
 
--- Was dieses Gerät pro Space schon hat
-CREATE TABLE version_vector (
-  space_id   BLOB NOT NULL,
-  device_id  BLOB NOT NULL,
-  max_seq    INTEGER NOT NULL,           -- höchste lückenlos vorhandene seq
-  PRIMARY KEY (space_id, device_id)
-);
-
--- Sync-Stand je Gegenstelle (Server oder LAN-Peer)
-CREATE TABLE sync_state (
-  peer_id    BLOB NOT NULL,
-  space_id   BLOB NOT NULL,
-  cursor     INTEGER,                    -- nur Server: server_seq
-  PRIMARY KEY (peer_id, space_id)
-);
-```
-
-Abfragen von Views (Filter, Gruppieren, Summen) laufen direkt auf
-`field_values`. Für große Collections können später pro Collection
-Index-Tabellen bzw. generierte Spalten ergänzt werden.
+Abfragen von Views (Filter, Gruppieren, Summen) laufen auf `field_values`. Für große
+Collections können später pro Collection Index-Tabellen bzw. generierte Spalten ergänzt werden.
 
 ---
 
@@ -388,6 +360,11 @@ enum Msg {
 ```
 
 ### 6.3 Server
+
+**Speicherung:** SQLite als Standard (ein Container, ein Volume, Backup = Datei kopieren).
+Der Server macht keine komplexen Abfragen, er hängt nur verschlüsselte Pakete an und liest sie
+der Reihe nach. Postgres kann später als Option hinter derselben Schnittstelle folgen, falls eine
+große gehostete Instanz es braucht.
 
 Der Server speichert pro Space ein Append-only-Log von Envelopes und vergibt
 zusätzlich eine fortlaufende `server_seq`. Damit kann ein Client einfach

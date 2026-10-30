@@ -1,0 +1,23 @@
+[package]
+name = "doeverything-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+ciborium = "0.2.2"
+doeverything-core = { version = "0.1.0", path = "../core" }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+serde = "1.0.229"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+tempfile = "3.27.0"
+
+[features]
+# Verschlüsselte Datenbank (SQLCipher, OpenSSL wird mitkompiliert)
+sqlcipher = ["rusqlite/bundled-sqlcipher-vendored-openssl"]

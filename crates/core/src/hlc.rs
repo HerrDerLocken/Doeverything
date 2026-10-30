@@ -87,6 +87,14 @@ impl Clock {
         }
     }
 
+    /// Setzt die Uhr nach einem Neustart hinter den letzten gespeicherten Zeitstempel.
+    pub fn resume(&mut self, last: Hlc) {
+        if (last.wall_ms, last.counter) > (self.wall_ms, self.counter) {
+            self.wall_ms = last.wall_ms;
+            self.counter = last.counter;
+        }
+    }
+
     /// Zieht die Uhr auf einen empfangenen Zeitstempel nach, sofern er plausibel ist.
     ///
     /// # Errors

@@ -94,7 +94,7 @@ pub fn decode<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, CodecErro
 
 #[cfg(test)]
 mod tests {
-    use doeverything_core::{DeviceId, EntityId, Replica, SysField};
+    use doeverything_core::{DeviceId, EntityId, MemoryStore, Replica, SysField};
 
     use super::*;
 
@@ -121,10 +121,12 @@ mod tests {
 
     #[test]
     fn changeset_roundtrip() {
-        let mut r = Replica::new(DeviceId::new());
-        let space = r.create_space("Privat", 1000);
-        r.transact(space, 1000, |tx| tx.set(space, SysField::Name, "Umbenannt"));
-        for cs in r.changesets_missing_from(space, &doeverything_core::VersionVector::default()) {
+        let mut r = Replica::open(MemoryStore::new()).unwrap();
+        let space = r.create_space("Privat", 1000).unwrap();
+        r.transact(space, 1000, |tx| tx.set(space, SysField::Name, "Umbenannt"))
+            .unwrap();
+        let alle = r.changesets_missing_from(space, &doeverything_core::VersionVector::default());
+        for cs in alle.unwrap() {
             let bytes = encode(&cs).unwrap();
             assert_eq!(decode::<doeverything_core::Changeset>(&bytes).unwrap(), cs);
         }

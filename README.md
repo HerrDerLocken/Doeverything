@@ -8,6 +8,7 @@ Local-first, Ende-zu-Ende-verschlüsselter Sync über einen selbst hostbaren Ser
 | Pfad | Inhalt |
 |---|---|
 | `crates/core` | Datenmodell, HLC, Konfliktlösung, Replikation |
+| `crates/store` | Lokale Speicherung in SQLite, optional verschlüsselt (Feature `sqlcipher`) |
 | `crates/proto` | Sync-Nachrichten und CBOR-Wire-Format |
 | `crates/server` | Sync-Relay-Server (axum) |
 | `docs/design/` | Design-Dokumente |
@@ -18,6 +19,7 @@ Voraussetzung: [rustup](https://rustup.rs). Die Toolchain wird über `rust-toolc
 
 ```sh
 cargo test                         # alle Tests
+cargo test --all-features          # inkl. verschlüsselter Datenbank (kompiliert OpenSSL mit)
 cargo clippy --all-targets         # Lints
 cargo run -p doeverything-server   # Server auf 127.0.0.1:8080 (DOEVERYTHING_BIND zum Ändern)
 ```

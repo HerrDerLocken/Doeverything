@@ -14,6 +14,15 @@
       ]
     },
     {
+      "label": "Tests (inkl. Verschlüsselung)",
+      "type": "shell",
+      "command": "cargo test --all-features",
+      "group": "test",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
       "label": "Clippy",
       "type": "shell",
       "command": "cargo clippy --all-targets",
