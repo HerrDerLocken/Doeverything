@@ -337,6 +337,12 @@ impl Store for SqliteStore {
         Ok(out)
     }
 
+    fn spaces(&self) -> Result<Vec<EntityId>> {
+        let found =
+            self.load_entities("e.kind = ?1 AND e.deleted = 0", params![Kind::Space.code()])?;
+        Ok(found.into_keys().collect())
+    }
+
     fn entities(&self, space: EntityId) -> Result<BTreeMap<EntityId, Entity>> {
         self.load_entities("e.space_id = ?1", params![&space.0[..]])
     }

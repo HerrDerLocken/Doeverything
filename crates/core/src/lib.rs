@@ -10,6 +10,7 @@ pub mod op;
 pub mod order;
 pub mod replica;
 pub mod store;
+pub mod templates;
 #[doc(hidden)]
 pub mod testsuite;
 pub mod value;

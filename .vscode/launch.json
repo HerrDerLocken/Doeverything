@@ -2,17 +2,39 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "App (Flutter)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "app",
+      "program": "lib/main.dart"
+    },
+    {
       "name": "Server debuggen",
       "type": "lldb",
       "request": "launch",
-      "cargo": { "args": ["build", "-p", "doeverything-server"] },
-      "env": { "DOEVERYTHING_BIND": "127.0.0.1:8080" }
+      "cargo": {
+        "args": [
+          "build",
+          "-p",
+          "doeverything-server"
+        ]
+      },
+      "env": {
+        "DOEVERYTHING_BIND": "127.0.0.1:8080"
+      }
     },
     {
       "name": "Core-Tests debuggen",
       "type": "lldb",
       "request": "launch",
-      "cargo": { "args": ["test", "--no-run", "-p", "doeverything-core"] }
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "-p",
+          "doeverything-core"
+        ]
+      }
     }
   ]
 }

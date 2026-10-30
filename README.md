@@ -7,6 +7,8 @@ Local-first, Ende-zu-Ende-verschlüsselter Sync über einen selbst hostbaren Ser
 
 | Pfad | Inhalt |
 |---|---|
+| `app/` | Flutter-App (Linux, Android, Windows, macOS, iOS) |
+| `app/rust` | Brücke zwischen App und Core (flutter_rust_bridge) |
 | `crates/core` | Datenmodell, HLC, Konfliktlösung, Replikation |
 | `crates/store` | Lokale Speicherung in SQLite, optional verschlüsselt (Feature `sqlcipher`) |
 | `crates/proto` | Sync-Nachrichten und CBOR-Wire-Format |
@@ -23,6 +25,17 @@ cargo test --all-features          # inkl. verschlüsselter Datenbank (kompilier
 cargo clippy --all-targets         # Lints
 cargo run -p doeverything-server   # Server auf 127.0.0.1:8080 (DOEVERYTHING_BIND zum Ändern)
 ```
+
+App (Flutter-SDK im `PATH`, Rust wird beim Build automatisch mitkompiliert):
+
+```sh
+cd app
+flutter run -d linux                         # starten
+flutter test integration_test -d linux       # UI-Test
+flutter_rust_bridge_codegen generate         # nach Änderungen an app/rust/src/api
+```
+
+Einmalig: `cargo install flutter_rust_bridge_codegen --locked`
 
 Server im Container (Podman lokal, Docker-kompatibel):
 

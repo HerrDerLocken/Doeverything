@@ -19,6 +19,21 @@ impl Default for EntityId {
     }
 }
 
+/// Textform wie eine UUID (`0192f0c4-…`), z. B. für die Übergabe an die Oberfläche.
+impl fmt::Display for EntityId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Uuid::from_bytes(self.0).fmt(f)
+    }
+}
+
+impl std::str::FromStr for EntityId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(*Uuid::parse_str(s)?.as_bytes()))
+    }
+}
+
 impl fmt::Debug for EntityId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "EntityId({})", Uuid::from_bytes(self.0))

@@ -23,6 +23,7 @@ macro_rules! konformitaets_tests {
             duplikate_und_luecken,
             geraet_mit_falscher_uhr_wird_markiert,
             alle_werttypen_bleiben_erhalten,
+            spaces_werden_gelistet,
         );
     };
     (@tests $neuer_store:expr; $($name:ident),* $(,)?) => {
@@ -395,4 +396,14 @@ pub fn alle_werttypen_bleiben_erhalten<S: Store>(neu: impl Fn() -> S) {
     gespeichert.sort_by_key(schluessel);
     erwartet.sort_by_key(schluessel);
     assert_eq!(gespeichert, erwartet);
+}
+
+pub fn spaces_werden_gelistet<S: Store>(neu: impl Fn() -> S) {
+    let mut r = Replica::open(neu()).unwrap();
+    assert_eq!(r.store().spaces().unwrap(), []);
+    let privat = r.create_space("Privat", 1000).unwrap();
+    let familie = r.create_space("Familie", 1001).unwrap();
+    assert_eq!(r.store().spaces().unwrap(), [privat, familie]);
+    r.transact(familie, 2000, |tx| tx.delete(familie)).unwrap();
+    assert_eq!(r.store().spaces().unwrap(), [privat]);
 }

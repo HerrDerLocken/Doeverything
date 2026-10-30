@@ -52,6 +52,25 @@
       "type": "shell",
       "command": "podman compose down",
       "problemMatcher": []
+    },
+    {
+      "label": "App: Dart-Bindings neu erzeugen",
+      "type": "shell",
+      "command": "flutter_rust_bridge_codegen generate",
+      "options": {
+        "cwd": "${workspaceFolder}/app"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: Integrationstest (Linux)",
+      "type": "shell",
+      "command": "flutter test integration_test -d linux",
+      "options": {
+        "cwd": "${workspaceFolder}/app"
+      },
+      "group": "test",
+      "problemMatcher": []
     }
   ]
 }

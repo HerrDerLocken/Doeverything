@@ -125,18 +125,26 @@ Ein Modul ist reine Konfiguration: ein Satz von Field- und View-Entities, der
 beim Anlegen einer Collection erzeugt wird. Danach gehört das Schema der
 Collection und kann frei angepasst werden.
 
+Felder tragen in `_config` optional eine **Rolle** (`{"role": "title"}`). Darüber findet eine
+generische Oberfläche Titel, Erledigt-Haken, Menge usw., ohne die Vorlage zu kennen.
+
 Beispiele:
 
 ```yaml
-shopping@1:
+shopping@1:            # umgesetzt in crates/core/src/templates.rs
   fields:
-    Artikel:   text
-    Menge:     decimal
-    Einheit:   enum [Stück, g, kg, ml, l, Packung]
-    Kategorie: enum [Obst & Gemüse, Kühlregal, Drogerie, Sonstiges]
-    Erledigt:  bool
+    Artikel:   text      role=title
+    Menge:     text      role=quantity   # Freitext ("2 kg"); strukturiert später als shopping@2
+    Erledigt:  bool      role=done
   views:
-    - list: group_by=Kategorie, sort=[Erledigt asc, _order asc]
+    - list: sort=[Erledigt asc, _order asc]
+
+todo@1:                # umgesetzt
+  fields:
+    Aufgabe:   text      role=title
+    Erledigt:  bool      role=done
+    Fällig:    date      role=due
+    Notiz:     text      role=notes
 
 finance@1:            # zwei Collections im selben Space
   Konten:

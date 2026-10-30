@@ -45,6 +45,9 @@ pub trait Store {
 
     /// Alle Entities eines Space inklusive gelöschter und noch nicht angelegter (Export, Vergleiche).
     fn entities(&self, space: EntityId) -> Result<BTreeMap<EntityId, Entity>, Self::Error>;
+
+    /// IDs aller sichtbaren Spaces, aufsteigend (= nach Erstellungszeit, da `UUIDv7`).
+    fn spaces(&self) -> Result<Vec<EntityId>, Self::Error>;
 }
 
 /// Referenzimplementierung im Arbeitsspeicher.
@@ -151,6 +154,19 @@ impl Store for MemoryStore {
             .collect();
         sort_children(&mut out);
         Ok(out)
+    }
+
+    fn spaces(&self) -> Result<Vec<EntityId>, Infallible> {
+        Ok(self
+            .spaces
+            .iter()
+            .filter(|(id, s)| {
+                s.entities
+                    .get(id)
+                    .is_some_and(|e| e.is_visible() && e.kind == Some(Kind::Space))
+            })
+            .map(|(id, _)| *id)
+            .collect())
     }
 
     fn entities(&self, space: EntityId) -> Result<BTreeMap<EntityId, Entity>, Infallible> {
