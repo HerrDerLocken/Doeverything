@@ -7,15 +7,44 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `count`, `fields_of_item`, `fields`, `is_done`, `parse`, `set`, `text`, `with`
+// These functions are ignored because they are not marked as `pub`: `categories`, `collection_of`, `count`, `currency`, `entity`, `fields_of_item`, `fields`, `is_done`, `ledger_entry`, `parse`, `set`, `text`, `view`, `with`, `write_entry`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Fields`, `Inner`
 
 /// Verfügbare Modul-Vorlagen für "Neue Liste".
 List<TemplateInfo> templates() =>
     RustLib.instance.api.crateApiTrackerTemplates();
 
+/// Deutsche Schreibweise, z. B. `1.234,56 €`.
+String formatAmount({required PlatformInt64 minor, required String currency}) =>
+    RustLib.instance.api.crateApiTrackerFormatAmount(
+      minor: minor,
+      currency: currency,
+    );
+
+/// Betrag in Cent aus Benutzereingabe (`12,34`, `1.234`, …); `None` bei ungültiger Eingabe.
+PlatformInt64? parseAmount({required String text}) =>
+    RustLib.instance.api.crateApiTrackerParseAmount(text: text);
+
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>>
 abstract class Tracker implements RustOpaqueInterface {
+  /// Fügt eine Kategorie hinzu und gibt ihre ID zurück.
+  ///
+  /// Die Optionen liegen als Ganzes in `_config`: Legen zwei Geräte gleichzeitig offline eine
+  /// Kategorie an, bleibt nur eine erhalten (bekannte Einschränkung von LWW).
+  Future<String> addCategory({
+    required String collectionId,
+    required String name,
+  });
+
+  /// Neue Buchung. `amount_minor` negativ = Ausgabe, `date` als `YYYY-MM-DD`.
+  Future<String> addEntry({
+    required String collectionId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  });
+
   Future<String> addItem({
     required String collectionId,
     required String title,
@@ -25,7 +54,8 @@ abstract class Tracker implements RustOpaqueInterface {
   /// Löscht alle erledigten Einträge und gibt ihre IDs für "Rückgängig" zurück.
   Future<List<String>> clearDone({required String collectionId});
 
-  Future<List<CollectionInfo>> collections();
+  /// Alle Listen. `today` (`YYYY-MM-DD`) bestimmt den Monat für den Saldo von Haushaltsbüchern.
+  Future<List<CollectionInfo>> collections({required String today});
 
   Future<String> createCollection({
     required String name,
@@ -38,6 +68,9 @@ abstract class Tracker implements RustOpaqueInterface {
 
   /// Einträge: offene zuerst, innerhalb der Gruppen in manueller Reihenfolge.
   Future<List<ItemInfo>> items({required String collectionId});
+
+  /// Buchungen nach Monat gruppiert, mit Summen.
+  Future<LedgerData> ledger({required String collectionId});
 
   /// Öffnet oder erzeugt die Datenbank. Beim ersten Start wird der Space "Privat" angelegt.
   static Future<Tracker> open({required String dbPath}) =>
@@ -55,6 +88,14 @@ abstract class Tracker implements RustOpaqueInterface {
 
   Future<void> setDone({required String itemId, required bool done});
 
+  Future<void> updateEntry({
+    required String entryId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  });
+
   Future<void> updateItem({
     required String itemId,
     required String title,
@@ -62,19 +103,63 @@ abstract class Tracker implements RustOpaqueInterface {
   });
 }
 
+class CategoryInfo {
+  final String id;
+  final String name;
+
+  const CategoryInfo({required this.id, required this.name});
+
+  @override
+  int get hashCode => id.hashCode ^ name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CategoryInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name;
+}
+
+class CategorySum {
+  final String name;
+  final PlatformInt64 expenseMinor;
+
+  const CategorySum({required this.name, required this.expenseMinor});
+
+  @override
+  int get hashCode => name.hashCode ^ expenseMinor.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CategorySum &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          expenseMinor == other.expenseMinor;
+}
+
 class CollectionInfo {
   final String id;
   final String name;
   final String template;
+  final CollectionView view;
   final int openCount;
   final int totalCount;
+
+  /// Nur `Ledger`: Saldo des Monats, in dem `today` liegt.
+  final PlatformInt64? monthBalanceMinor;
+  final String? currency;
 
   const CollectionInfo({
     required this.id,
     required this.name,
     required this.template,
+    required this.view,
     required this.openCount,
     required this.totalCount,
+    this.monthBalanceMinor,
+    this.currency,
   });
 
   @override
@@ -82,8 +167,11 @@ class CollectionInfo {
       id.hashCode ^
       name.hashCode ^
       template.hashCode ^
+      view.hashCode ^
       openCount.hashCode ^
-      totalCount.hashCode;
+      totalCount.hashCode ^
+      monthBalanceMinor.hashCode ^
+      currency.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -93,8 +181,20 @@ class CollectionInfo {
           id == other.id &&
           name == other.name &&
           template == other.template &&
+          view == other.view &&
           openCount == other.openCount &&
-          totalCount == other.totalCount;
+          totalCount == other.totalCount &&
+          monthBalanceMinor == other.monthBalanceMinor &&
+          currency == other.currency;
+}
+
+/// Welche Ansicht eine Collection bekommt. Ergibt sich aus ihren Feldern, nicht aus der Vorlage.
+enum CollectionView {
+  /// Einträge zum Abhaken (To-Do, Einkauf).
+  checklist,
+
+  /// Buchungen mit Betrag und Datum (Haushaltsbuch).
+  ledger,
 }
 
 class ItemInfo {
@@ -123,6 +223,118 @@ class ItemInfo {
           title == other.title &&
           done == other.done &&
           quantity == other.quantity;
+}
+
+class LedgerData {
+  final String currency;
+  final List<CategoryInfo> categories;
+
+  /// Neuester Monat zuerst.
+  final List<MonthView> months;
+
+  const LedgerData({
+    required this.currency,
+    required this.categories,
+    required this.months,
+  });
+
+  @override
+  int get hashCode => currency.hashCode ^ categories.hashCode ^ months.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LedgerData &&
+          runtimeType == other.runtimeType &&
+          currency == other.currency &&
+          categories == other.categories &&
+          months == other.months;
+}
+
+class LedgerEntry {
+  final String id;
+  final String description;
+
+  /// Negativ = Ausgabe.
+  final PlatformInt64 amountMinor;
+
+  /// `YYYY-MM-DD`
+  final String date;
+  final String? categoryId;
+  final String? categoryName;
+
+  const LedgerEntry({
+    required this.id,
+    required this.description,
+    required this.amountMinor,
+    required this.date,
+    this.categoryId,
+    this.categoryName,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      description.hashCode ^
+      amountMinor.hashCode ^
+      date.hashCode ^
+      categoryId.hashCode ^
+      categoryName.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LedgerEntry &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          description == other.description &&
+          amountMinor == other.amountMinor &&
+          date == other.date &&
+          categoryId == other.categoryId &&
+          categoryName == other.categoryName;
+}
+
+class MonthView {
+  final int year;
+  final int month;
+  final PlatformInt64 incomeMinor;
+  final PlatformInt64 expenseMinor;
+  final PlatformInt64 balanceMinor;
+  final List<CategorySum> categories;
+  final List<LedgerEntry> entries;
+
+  const MonthView({
+    required this.year,
+    required this.month,
+    required this.incomeMinor,
+    required this.expenseMinor,
+    required this.balanceMinor,
+    required this.categories,
+    required this.entries,
+  });
+
+  @override
+  int get hashCode =>
+      year.hashCode ^
+      month.hashCode ^
+      incomeMinor.hashCode ^
+      expenseMinor.hashCode ^
+      balanceMinor.hashCode ^
+      categories.hashCode ^
+      entries.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MonthView &&
+          runtimeType == other.runtimeType &&
+          year == other.year &&
+          month == other.month &&
+          incomeMinor == other.incomeMinor &&
+          expenseMinor == other.expenseMinor &&
+          balanceMinor == other.balanceMinor &&
+          categories == other.categories &&
+          entries == other.entries;
 }
 
 class TemplateInfo {

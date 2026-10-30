@@ -53,13 +53,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  CategoryInfo dco_decode_category_info(dynamic raw);
+
+  @protected
+  CategorySum dco_decode_category_sum(dynamic raw);
+
+  @protected
   CollectionInfo dco_decode_collection_info(dynamic raw);
+
+  @protected
+  CollectionView dco_decode_collection_view(dynamic raw);
+
+  @protected
+  int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   ItemInfo dco_decode_item_info(dynamic raw);
 
   @protected
+  LedgerData dco_decode_ledger_data(dynamic raw);
+
+  @protected
+  LedgerEntry dco_decode_ledger_entry(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<CategoryInfo> dco_decode_list_category_info(dynamic raw);
+
+  @protected
+  List<CategorySum> dco_decode_list_category_sum(dynamic raw);
 
   @protected
   List<CollectionInfo> dco_decode_list_collection_info(dynamic raw);
@@ -68,13 +98,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ItemInfo> dco_decode_list_item_info(dynamic raw);
 
   @protected
+  List<LedgerEntry> dco_decode_list_ledger_entry(dynamic raw);
+
+  @protected
+  List<MonthView> dco_decode_list_month_view(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
   List<TemplateInfo> dco_decode_list_template_info(dynamic raw);
 
   @protected
+  MonthView dco_decode_month_view(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
   TemplateInfo dco_decode_template_info(dynamic raw);
@@ -119,13 +161,45 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  CategoryInfo sse_decode_category_info(SseDeserializer deserializer);
+
+  @protected
+  CategorySum sse_decode_category_sum(SseDeserializer deserializer);
+
+  @protected
   CollectionInfo sse_decode_collection_info(SseDeserializer deserializer);
+
+  @protected
+  CollectionView sse_decode_collection_view(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   ItemInfo sse_decode_item_info(SseDeserializer deserializer);
 
   @protected
+  LedgerData sse_decode_ledger_data(SseDeserializer deserializer);
+
+  @protected
+  LedgerEntry sse_decode_ledger_entry(SseDeserializer deserializer);
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<CategoryInfo> sse_decode_list_category_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CategorySum> sse_decode_list_category_sum(SseDeserializer deserializer);
 
   @protected
   List<CollectionInfo> sse_decode_list_collection_info(
@@ -136,6 +210,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ItemInfo> sse_decode_list_item_info(SseDeserializer deserializer);
 
   @protected
+  List<LedgerEntry> sse_decode_list_ledger_entry(SseDeserializer deserializer);
+
+  @protected
+  List<MonthView> sse_decode_list_month_view(SseDeserializer deserializer);
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
@@ -144,7 +224,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  MonthView sse_decode_month_view(SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   TemplateInfo sse_decode_template_info(SseDeserializer deserializer);
@@ -160,9 +246,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   void sse_encode_AnyhowException(
@@ -198,16 +281,58 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_category_info(CategoryInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_category_sum(CategorySum self, SseSerializer serializer);
+
+  @protected
   void sse_encode_collection_info(
     CollectionInfo self,
     SseSerializer serializer,
   );
 
   @protected
+  void sse_encode_collection_view(
+    CollectionView self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
   void sse_encode_item_info(ItemInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_ledger_data(LedgerData self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ledger_entry(LedgerEntry self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_category_info(
+    List<CategoryInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_category_sum(
+    List<CategorySum> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_collection_info(
@@ -217,6 +342,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_item_info(List<ItemInfo> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_ledger_entry(
+    List<LedgerEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_month_view(
+    List<MonthView> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -231,7 +368,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_month_view(MonthView self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_template_info(TemplateInfo self, SseSerializer serializer);
@@ -247,9 +393,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer);
 }
 
 // Section: wire_class

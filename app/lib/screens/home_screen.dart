@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../src/rust/api/tracker.dart';
 import 'collection_screen.dart';
+import 'ledger_screen.dart';
 import 'common.dart';
 
 /// Übersicht aller Listen.
@@ -26,7 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load() async {
-    final collections = await guarded(context, _tracker.collections);
+    final collections = await guarded(
+      context,
+      () => _tracker.collections(today: isoDate(DateTime.now())),
+    );
     if (mounted && collections != null) {
       setState(() => _collections = collections);
     }
@@ -35,8 +39,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _open(CollectionInfo collection) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            CollectionScreen(tracker: _tracker, collection: collection),
+        builder: (_) => switch (collection.view) {
+          CollectionView.ledger => LedgerScreen(
+            tracker: _tracker,
+            collection: collection,
+          ),
+          CollectionView.checklist => CollectionScreen(
+            tracker: _tracker,
+            collection: collection,
+          ),
+        },
       ),
     );
     await _load();
@@ -85,6 +97,16 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  String _subtitle(CollectionInfo c) {
+    if (c.totalCount == 0) return 'Leer';
+    return switch (c.view) {
+      CollectionView.ledger =>
+        'Diesen Monat: ${formatAmount(minor: c.monthBalanceMinor ?? 0, currency: c.currency ?? 'EUR')}',
+      CollectionView.checklist =>
+        '${c.openCount} offen · ${c.totalCount} gesamt',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final collections = _collections;
@@ -107,11 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListTile(
                 leading: Icon(templateIcon(c.template)),
                 title: Text(c.name),
-                subtitle: Text(
-                  c.totalCount == 0
-                      ? 'Leer'
-                      : '${c.openCount} offen · ${c.totalCount} gesamt',
-                ),
+                subtitle: Text(_subtitle(c)),
                 onTap: () => _open(c),
                 trailing: PopupMenuButton<String>(
                   onSelected: (action) => switch (action) {
@@ -149,7 +167,7 @@ class _EmptyState extends StatelessWidget {
             Text('Noch keine Listen', style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text(
-              'Lege eine To-Do- oder Einkaufsliste an.',
+              'Lege eine To-Do-Liste, Einkaufsliste oder ein Haushaltsbuch an.',
               textAlign: TextAlign.center,
             ),
           ],

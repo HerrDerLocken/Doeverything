@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 145088782;
+  int get rustContentHash => -1934005703;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -81,6 +81,21 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<String> crateApiTrackerTrackerAddCategory({
+    required Tracker that,
+    required String collectionId,
+    required String name,
+  });
+
+  Future<String> crateApiTrackerTrackerAddEntry({
+    required Tracker that,
+    required String collectionId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  });
+
   Future<String> crateApiTrackerTrackerAddItem({
     required Tracker that,
     required String collectionId,
@@ -95,6 +110,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<CollectionInfo>> crateApiTrackerTrackerCollections({
     required Tracker that,
+    required String today,
   });
 
   Future<String> crateApiTrackerTrackerCreateCollection({
@@ -114,6 +130,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<ItemInfo>> crateApiTrackerTrackerItems({
+    required Tracker that,
+    required String collectionId,
+  });
+
+  Future<LedgerData> crateApiTrackerTrackerLedger({
     required Tracker that,
     required String collectionId,
   });
@@ -142,6 +163,15 @@ abstract class RustLibApi extends BaseApi {
     required bool done,
   });
 
+  Future<void> crateApiTrackerTrackerUpdateEntry({
+    required Tracker that,
+    required String entryId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  });
+
   Future<void> crateApiTrackerTrackerUpdateItem({
     required Tracker that,
     required String itemId,
@@ -149,7 +179,14 @@ abstract class RustLibApi extends BaseApi {
     String? quantity,
   });
 
+  String crateApiTrackerFormatAmount({
+    required PlatformInt64 minor,
+    required String currency,
+  });
+
   Future<void> crateApiTrackerInitApp();
+
+  PlatformInt64? crateApiTrackerParseAmount({required String text});
 
   List<TemplateInfo> crateApiTrackerTemplates();
 
@@ -167,6 +204,106 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required super.generalizedFrbRustBinding,
     required super.portManager,
   });
+
+  @override
+  Future<String> crateApiTrackerTrackerAddCategory({
+    required Tracker that,
+    required String collectionId,
+    required String name,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(collectionId, serializer);
+          sse_encode_String(name, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerAddCategoryConstMeta,
+        argValues: [that, collectionId, name],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerAddCategoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_add_category",
+        argNames: ["that", "collectionId", "name"],
+      );
+
+  @override
+  Future<String> crateApiTrackerTrackerAddEntry({
+    required Tracker that,
+    required String collectionId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(collectionId, serializer);
+          sse_encode_String(description, serializer);
+          sse_encode_i_64(amountMinor, serializer);
+          sse_encode_String(date, serializer);
+          sse_encode_opt_String(categoryId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerAddEntryConstMeta,
+        argValues: [
+          that,
+          collectionId,
+          description,
+          amountMinor,
+          date,
+          categoryId,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerAddEntryConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_add_entry",
+        argNames: [
+          "that",
+          "collectionId",
+          "description",
+          "amountMinor",
+          "date",
+          "categoryId",
+        ],
+      );
 
   @override
   Future<String> crateApiTrackerTrackerAddItem({
@@ -189,7 +326,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 3,
             port: port_,
           );
         },
@@ -227,7 +364,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 4,
             port: port_,
           );
         },
@@ -251,6 +388,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   Future<List<CollectionInfo>> crateApiTrackerTrackerCollections({
     required Tracker that,
+    required String today,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -260,10 +398,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
+          sse_encode_String(today, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 5,
             port: port_,
           );
         },
@@ -272,14 +411,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_AnyhowException,
         ),
         constMeta: kCrateApiTrackerTrackerCollectionsConstMeta,
-        argValues: [that],
+        argValues: [that, today],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiTrackerTrackerCollectionsConstMeta =>
-      const TaskConstMeta(debugName: "Tracker_collections", argNames: ["that"]);
+      const TaskConstMeta(
+        debugName: "Tracker_collections",
+        argNames: ["that", "today"],
+      );
 
   @override
   Future<String> crateApiTrackerTrackerCreateCollection({
@@ -300,7 +442,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 6,
             port: port_,
           );
         },
@@ -338,7 +480,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 7,
             port: port_,
           );
         },
@@ -376,7 +518,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 8,
             port: port_,
           );
         },
@@ -414,7 +556,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 9,
             port: port_,
           );
         },
@@ -436,6 +578,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<LedgerData> crateApiTrackerTrackerLedger({
+    required Tracker that,
+    required String collectionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(collectionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 10,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_ledger_data,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerLedgerConstMeta,
+        argValues: [that, collectionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerLedgerConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_ledger",
+        argNames: ["that", "collectionId"],
+      );
+
+  @override
   Future<Tracker> crateApiTrackerTrackerOpen({required String dbPath}) {
     return handler.executeNormal(
       NormalTask(
@@ -445,7 +625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 11,
             port: port_,
           );
         },
@@ -483,7 +663,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 12,
             port: port_,
           );
         },
@@ -521,7 +701,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 13,
             port: port_,
           );
         },
@@ -559,7 +739,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 14,
             port: port_,
           );
         },
@@ -599,7 +779,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 15,
             port: port_,
           );
         },
@@ -618,6 +798,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "Tracker_set_done",
         argNames: ["that", "itemId", "done"],
+      );
+
+  @override
+  Future<void> crateApiTrackerTrackerUpdateEntry({
+    required Tracker that,
+    required String entryId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(entryId, serializer);
+          sse_encode_String(description, serializer);
+          sse_encode_i_64(amountMinor, serializer);
+          sse_encode_String(date, serializer);
+          sse_encode_opt_String(categoryId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerUpdateEntryConstMeta,
+        argValues: [that, entryId, description, amountMinor, date, categoryId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerUpdateEntryConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_update_entry",
+        argNames: [
+          "that",
+          "entryId",
+          "description",
+          "amountMinor",
+          "date",
+          "categoryId",
+        ],
       );
 
   @override
@@ -641,7 +874,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 17,
             port: port_,
           );
         },
@@ -663,6 +896,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  String crateApiTrackerFormatAmount({
+    required PlatformInt64 minor,
+    required String currency,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_i_64(minor, serializer);
+          sse_encode_String(currency, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTrackerFormatAmountConstMeta,
+        argValues: [minor, currency],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerFormatAmountConstMeta =>
+      const TaskConstMeta(
+        debugName: "format_amount",
+        argNames: ["minor", "currency"],
+      );
+
+  @override
   Future<void> crateApiTrackerInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -671,7 +934,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 19,
             port: port_,
           );
         },
@@ -690,12 +953,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
+  PlatformInt64? crateApiTrackerParseAmount({required String text}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(text, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_i_64,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTrackerParseAmountConstMeta,
+        argValues: [text],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerParseAmountConstMeta =>
+      const TaskConstMeta(debugName: "parse_amount", argNames: ["text"]);
+
+  @override
   List<TemplateInfo> crateApiTrackerTemplates() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_template_info,
@@ -765,18 +1051,69 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
+  }
+
+  @protected
+  CategoryInfo dco_decode_category_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CategoryInfo(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  CategorySum dco_decode_category_sum(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return CategorySum(
+      name: dco_decode_String(arr[0]),
+      expenseMinor: dco_decode_i_64(arr[1]),
+    );
+  }
+
+  @protected
   CollectionInfo dco_decode_collection_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return CollectionInfo(
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       template: dco_decode_String(arr[2]),
-      openCount: dco_decode_u_32(arr[3]),
-      totalCount: dco_decode_u_32(arr[4]),
+      view: dco_decode_collection_view(arr[3]),
+      openCount: dco_decode_u_32(arr[4]),
+      totalCount: dco_decode_u_32(arr[5]),
+      monthBalanceMinor: dco_decode_opt_box_autoadd_i_64(arr[6]),
+      currency: dco_decode_opt_String(arr[7]),
     );
+  }
+
+  @protected
+  CollectionView dco_decode_collection_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return CollectionView.values[raw as int];
+  }
+
+  @protected
+  int dco_decode_i_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -794,9 +1131,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LedgerData dco_decode_ledger_data(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return LedgerData(
+      currency: dco_decode_String(arr[0]),
+      categories: dco_decode_list_category_info(arr[1]),
+      months: dco_decode_list_month_view(arr[2]),
+    );
+  }
+
+  @protected
+  LedgerEntry dco_decode_ledger_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return LedgerEntry(
+      id: dco_decode_String(arr[0]),
+      description: dco_decode_String(arr[1]),
+      amountMinor: dco_decode_i_64(arr[2]),
+      date: dco_decode_String(arr[3]),
+      categoryId: dco_decode_opt_String(arr[4]),
+      categoryName: dco_decode_opt_String(arr[5]),
+    );
+  }
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<CategoryInfo> dco_decode_list_category_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_category_info).toList();
+  }
+
+  @protected
+  List<CategorySum> dco_decode_list_category_sum(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_category_sum).toList();
   }
 
   @protected
@@ -812,6 +1190,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LedgerEntry> dco_decode_list_ledger_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_ledger_entry).toList();
+  }
+
+  @protected
+  List<MonthView> dco_decode_list_month_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_month_view).toList();
+  }
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Uint8List;
@@ -824,9 +1214,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MonthView dco_decode_month_view(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return MonthView(
+      year: dco_decode_i_32(arr[0]),
+      month: dco_decode_u_32(arr[1]),
+      incomeMinor: dco_decode_i_64(arr[2]),
+      expenseMinor: dco_decode_i_64(arr[3]),
+      balanceMinor: dco_decode_i_64(arr[4]),
+      categories: dco_decode_list_category_sum(arr[5]),
+      entries: dco_decode_list_ledger_entry(arr[6]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
   }
 
   @protected
@@ -922,20 +1335,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
+  }
+
+  @protected
+  CategoryInfo sse_decode_category_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    return CategoryInfo(id: var_id, name: var_name);
+  }
+
+  @protected
+  CategorySum sse_decode_category_sum(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_expenseMinor = sse_decode_i_64(deserializer);
+    return CategorySum(name: var_name, expenseMinor: var_expenseMinor);
+  }
+
+  @protected
   CollectionInfo sse_decode_collection_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
     var var_name = sse_decode_String(deserializer);
     var var_template = sse_decode_String(deserializer);
+    var var_view = sse_decode_collection_view(deserializer);
     var var_openCount = sse_decode_u_32(deserializer);
     var var_totalCount = sse_decode_u_32(deserializer);
+    var var_monthBalanceMinor = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_currency = sse_decode_opt_String(deserializer);
     return CollectionInfo(
       id: var_id,
       name: var_name,
       template: var_template,
+      view: var_view,
       openCount: var_openCount,
       totalCount: var_totalCount,
+      monthBalanceMinor: var_monthBalanceMinor,
+      currency: var_currency,
     );
+  }
+
+  @protected
+  CollectionView sse_decode_collection_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return CollectionView.values[inner];
+  }
+
+  @protected
+  int sse_decode_i_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -954,6 +1414,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LedgerData sse_decode_ledger_data(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_currency = sse_decode_String(deserializer);
+    var var_categories = sse_decode_list_category_info(deserializer);
+    var var_months = sse_decode_list_month_view(deserializer);
+    return LedgerData(
+      currency: var_currency,
+      categories: var_categories,
+      months: var_months,
+    );
+  }
+
+  @protected
+  LedgerEntry sse_decode_ledger_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_description = sse_decode_String(deserializer);
+    var var_amountMinor = sse_decode_i_64(deserializer);
+    var var_date = sse_decode_String(deserializer);
+    var var_categoryId = sse_decode_opt_String(deserializer);
+    var var_categoryName = sse_decode_opt_String(deserializer);
+    return LedgerEntry(
+      id: var_id,
+      description: var_description,
+      amountMinor: var_amountMinor,
+      date: var_date,
+      categoryId: var_categoryId,
+      categoryName: var_categoryName,
+    );
+  }
+
+  @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -961,6 +1453,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CategoryInfo> sse_decode_list_category_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CategoryInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_category_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<CategorySum> sse_decode_list_category_sum(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CategorySum>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_category_sum(deserializer));
     }
     return ans_;
   }
@@ -992,6 +1510,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<LedgerEntry> sse_decode_list_ledger_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <LedgerEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_ledger_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<MonthView> sse_decode_list_month_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <MonthView>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_month_view(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
@@ -1013,11 +1555,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MonthView sse_decode_month_view(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_year = sse_decode_i_32(deserializer);
+    var var_month = sse_decode_u_32(deserializer);
+    var var_incomeMinor = sse_decode_i_64(deserializer);
+    var var_expenseMinor = sse_decode_i_64(deserializer);
+    var var_balanceMinor = sse_decode_i_64(deserializer);
+    var var_categories = sse_decode_list_category_sum(deserializer);
+    var var_entries = sse_decode_list_ledger_entry(deserializer);
+    return MonthView(
+      year: var_year,
+      month: var_month,
+      incomeMinor: var_incomeMinor,
+      expenseMinor: var_expenseMinor,
+      balanceMinor: var_balanceMinor,
+      categories: var_categories,
+      entries: var_entries,
+    );
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_String(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
     } else {
       return null;
     }
@@ -1052,12 +1626,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  int sse_decode_i_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getInt32();
   }
 
   @protected
@@ -1121,6 +1689,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
+  }
+
+  @protected
+  void sse_encode_category_info(CategoryInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+  }
+
+  @protected
+  void sse_encode_category_sum(CategorySum self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_i_64(self.expenseMinor, serializer);
+  }
+
+  @protected
   void sse_encode_collection_info(
     CollectionInfo self,
     SseSerializer serializer,
@@ -1129,8 +1720,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_String(self.template, serializer);
+    sse_encode_collection_view(self.view, serializer);
     sse_encode_u_32(self.openCount, serializer);
     sse_encode_u_32(self.totalCount, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.monthBalanceMinor, serializer);
+    sse_encode_opt_String(self.currency, serializer);
+  }
+
+  @protected
+  void sse_encode_collection_view(
+    CollectionView self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_i_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -1143,11 +1758,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_ledger_data(LedgerData self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.currency, serializer);
+    sse_encode_list_category_info(self.categories, serializer);
+    sse_encode_list_month_view(self.months, serializer);
+  }
+
+  @protected
+  void sse_encode_ledger_entry(LedgerEntry self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.description, serializer);
+    sse_encode_i_64(self.amountMinor, serializer);
+    sse_encode_String(self.date, serializer);
+    sse_encode_opt_String(self.categoryId, serializer);
+    sse_encode_opt_String(self.categoryName, serializer);
+  }
+
+  @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_category_info(
+    List<CategoryInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_category_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_category_sum(
+    List<CategorySum> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_category_sum(item, serializer);
     }
   }
 
@@ -1176,6 +1834,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_ledger_entry(
+    List<LedgerEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_ledger_entry(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_month_view(
+    List<MonthView> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_month_view(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_strict(
     Uint8List self,
     SseSerializer serializer,
@@ -1198,12 +1880,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_month_view(MonthView self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.year, serializer);
+    sse_encode_u_32(self.month, serializer);
+    sse_encode_i_64(self.incomeMinor, serializer);
+    sse_encode_i_64(self.expenseMinor, serializer);
+    sse_encode_i_64(self.balanceMinor, serializer);
+    sse_encode_list_category_sum(self.categories, serializer);
+    sse_encode_list_ledger_entry(self.entries, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
     }
   }
 
@@ -1236,12 +1943,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
-
-  @protected
-  void sse_encode_i_32(int self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putInt32(self);
-  }
 }
 
 @sealed
@@ -1263,6 +1964,35 @@ class TrackerImpl extends RustOpaque implements Tracker {
         RustLib.instance.api.rust_arc_decrement_strong_count_TrackerPtr,
   );
 
+  /// Fügt eine Kategorie hinzu und gibt ihre ID zurück.
+  ///
+  /// Die Optionen liegen als Ganzes in `_config`: Legen zwei Geräte gleichzeitig offline eine
+  /// Kategorie an, bleibt nur eine erhalten (bekannte Einschränkung von LWW).
+  Future<String> addCategory({
+    required String collectionId,
+    required String name,
+  }) => RustLib.instance.api.crateApiTrackerTrackerAddCategory(
+    that: this,
+    collectionId: collectionId,
+    name: name,
+  );
+
+  /// Neue Buchung. `amount_minor` negativ = Ausgabe, `date` als `YYYY-MM-DD`.
+  Future<String> addEntry({
+    required String collectionId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  }) => RustLib.instance.api.crateApiTrackerTrackerAddEntry(
+    that: this,
+    collectionId: collectionId,
+    description: description,
+    amountMinor: amountMinor,
+    date: date,
+    categoryId: categoryId,
+  );
+
   Future<String> addItem({
     required String collectionId,
     required String title,
@@ -1280,8 +2010,11 @@ class TrackerImpl extends RustOpaque implements Tracker {
       .api
       .crateApiTrackerTrackerClearDone(that: this, collectionId: collectionId);
 
-  Future<List<CollectionInfo>> collections() =>
-      RustLib.instance.api.crateApiTrackerTrackerCollections(that: this);
+  /// Alle Listen. `today` (`YYYY-MM-DD`) bestimmt den Monat für den Saldo von Haushaltsbüchern.
+  Future<List<CollectionInfo>> collections({required String today}) => RustLib
+      .instance
+      .api
+      .crateApiTrackerTrackerCollections(that: this, today: today);
 
   Future<String> createCollection({
     required String name,
@@ -1306,6 +2039,12 @@ class TrackerImpl extends RustOpaque implements Tracker {
       .instance
       .api
       .crateApiTrackerTrackerItems(that: this, collectionId: collectionId);
+
+  /// Buchungen nach Monat gruppiert, mit Summen.
+  Future<LedgerData> ledger({required String collectionId}) => RustLib
+      .instance
+      .api
+      .crateApiTrackerTrackerLedger(that: this, collectionId: collectionId);
 
   Future<void> renameCollection({
     required String collectionId,
@@ -1332,6 +2071,21 @@ class TrackerImpl extends RustOpaque implements Tracker {
       .instance
       .api
       .crateApiTrackerTrackerSetDone(that: this, itemId: itemId, done: done);
+
+  Future<void> updateEntry({
+    required String entryId,
+    required String description,
+    required PlatformInt64 amountMinor,
+    required String date,
+    String? categoryId,
+  }) => RustLib.instance.api.crateApiTrackerTrackerUpdateEntry(
+    that: this,
+    entryId: entryId,
+    description: description,
+    amountMinor: amountMinor,
+    date: date,
+    categoryId: categoryId,
+  );
 
   Future<void> updateItem({
     required String itemId,

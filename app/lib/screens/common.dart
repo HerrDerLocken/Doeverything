@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 IconData templateIcon(String template) => switch (template.split('@').first) {
   'shopping' => Icons.shopping_cart_outlined,
   'todo' => Icons.check_circle_outline,
+  'finance' => Icons.account_balance_wallet_outlined,
   _ => Icons.list_alt,
 };
 
@@ -30,4 +31,31 @@ void showUndo(BuildContext context, String message, VoidCallback onUndo) {
         action: SnackBarAction(label: 'Rückgängig', onPressed: onUndo),
       ),
     );
+}
+
+/// `YYYY-MM-DD`, wie es die Rust-Seite erwartet.
+String isoDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+const monthNames = [
+  'Januar',
+  'Februar',
+  'März',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Dezember',
+];
+
+/// `30.10.2026` aus `2026-10-30`.
+String germanDate(String iso, {bool withYear = true}) {
+  final d = DateTime.parse(iso);
+  final day =
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.';
+  return withYear ? '$day${d.year}' : day;
 }

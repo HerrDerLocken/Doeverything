@@ -146,19 +146,15 @@ todo@1:                # umgesetzt
     Fällig:    date      role=due
     Notiz:     text      role=notes
 
-finance@1:            # zwei Collections im selben Space
-  Konten:
-    Name: text
-    Startsaldo: money
-  Buchungen:
-    Betrag: money      # negativ = Ausgabe
-    Datum: date
-    Kategorie: enum [...]
-    Konto: ref → Konten
-    Notiz: text
+finance@1:             # umgesetzt: eine Collection, Konten folgen als finance@2
+  fields:
+    Beschreibung: text   role=title
+    Betrag:       money  role=amount   _config.currency = EUR   # negativ = Ausgabe
+    Datum:        date   role=date
+    Kategorie:    enum   role=category  _config.options = [Lebensmittel, Haushalt, …]
+    Notiz:        text   role=notes
   views:
-    - table: sort=[Datum desc]
-    - chart: sum(Betrag) group_by=Kategorie, period=month
+    - ledger: Monate (neueste zuerst) mit Einnahmen, Ausgaben, Saldo, Ausgaben je Kategorie
 
 fitness@1:
   Übungen:  { Name: text, Muskelgruppe: multienum [...] }
@@ -167,7 +163,15 @@ fitness@1:
 ```
 
 **Berechnete Werte** (Summen, Kontostände, Statistiken, Steuerrechner) werden
-lokal aus den Daten berechnet und **nie synchronisiert**.
+lokal aus den Daten berechnet und **nie synchronisiert** (`crates/core/src/ledger.rs`,
+`money.rs`).
+
+**Welche Ansicht** eine Collection bekommt, ergibt sich aus den Rollen ihrer Felder, nicht aus
+der Vorlage: Betragsfeld → Buchungsansicht, sonst Checkliste. Eigene oder abgewandelte
+Collections bekommen so automatisch die passende Ansicht.
+
+**Optionen von Auswahlfeldern** liegen als Ganzes in `_config`. Legen zwei Geräte gleichzeitig
+offline eine neue Option an, gewinnt eine (LWW). Später: Optionen als eigene Entities.
 
 **Rechner-Module** (Steuerrechner) speichern höchstens ihre Eingaben als
 Record; die Regeln sind versionierter Code pro Steuerjahr (`tax-de@2026`).

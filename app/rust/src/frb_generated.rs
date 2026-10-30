@@ -40,7 +40,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 145088782;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1934005703;
 
 // Section: executor
 
@@ -48,6 +48,126 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
+fn wire__crate__api__tracker__Tracker_add_category_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Tracker_add_category",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>,
+            >>::sse_decode(&mut deserializer);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            let api_name = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::tracker::Tracker::add_category(
+                            &*api_that_guard,
+                            api_collection_id,
+                            api_name,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tracker__Tracker_add_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Tracker_add_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>,
+            >>::sse_decode(&mut deserializer);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            let api_description = <String>::sse_decode(&mut deserializer);
+            let api_amount_minor = <i64>::sse_decode(&mut deserializer);
+            let api_date = <String>::sse_decode(&mut deserializer);
+            let api_category_id = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::tracker::Tracker::add_entry(
+                            &*api_that_guard,
+                            api_collection_id,
+                            api_description,
+                            api_amount_minor,
+                            api_date,
+                            api_category_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__tracker__Tracker_add_item_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -187,6 +307,7 @@ fn wire__crate__api__tracker__Tracker_collections_impl(
             let api_that = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>,
             >>::sse_decode(&mut deserializer);
+            let api_today = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
@@ -206,7 +327,7 @@ fn wire__crate__api__tracker__Tracker_collections_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok =
-                            crate::api::tracker::Tracker::collections(&*api_that_guard)?;
+                            crate::api::tracker::Tracker::collections(&*api_that_guard, api_today)?;
                         std::result::Result::Ok(output_ok)
                     })(),
                 )
@@ -426,6 +547,61 @@ fn wire__crate__api__tracker__Tracker_items_impl(
                         }
                         let api_that_guard = api_that_guard.unwrap();
                         let output_ok = crate::api::tracker::Tracker::items(
+                            &*api_that_guard,
+                            api_collection_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__tracker__Tracker_ledger_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Tracker_ledger",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>,
+            >>::sse_decode(&mut deserializer);
+            let api_collection_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::tracker::Tracker::ledger(
                             &*api_that_guard,
                             api_collection_id,
                         )?;
@@ -695,6 +871,69 @@ fn wire__crate__api__tracker__Tracker_set_done_impl(
         },
     )
 }
+fn wire__crate__api__tracker__Tracker_update_entry_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "Tracker_update_entry",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Tracker>,
+            >>::sse_decode(&mut deserializer);
+            let api_entry_id = <String>::sse_decode(&mut deserializer);
+            let api_description = <String>::sse_decode(&mut deserializer);
+            let api_amount_minor = <i64>::sse_decode(&mut deserializer);
+            let api_date = <String>::sse_decode(&mut deserializer);
+            let api_category_id = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || {
+                        let mut api_that_guard = None;
+                        let decode_indices_ =
+                            flutter_rust_bridge::for_generated::lockable_compute_decode_order(
+                                vec![flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                    &api_that, 0, false,
+                                )],
+                            );
+                        for i in decode_indices_ {
+                            match i {
+                                0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                                _ => unreachable!(),
+                            }
+                        }
+                        let api_that_guard = api_that_guard.unwrap();
+                        let output_ok = crate::api::tracker::Tracker::update_entry(
+                            &*api_that_guard,
+                            api_entry_id,
+                            api_description,
+                            api_amount_minor,
+                            api_date,
+                            api_category_id,
+                        )?;
+                        std::result::Result::Ok(output_ok)
+                    })(),
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__tracker__Tracker_update_item_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -754,6 +993,38 @@ fn wire__crate__api__tracker__Tracker_update_item_impl(
         },
     )
 }
+fn wire__crate__api__tracker__format_amount_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "format_amount",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_minor = <i64>::sse_decode(&mut deserializer);
+            let api_currency = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Ok::<_, ()>(crate::api::tracker::format_amount(api_minor, api_currency))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__tracker__init_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -785,6 +1056,36 @@ fn wire__crate__api__tracker__init_app_impl(
                     std::result::Result::Ok(output_ok)
                 })())
             }
+        },
+    )
+}
+fn wire__crate__api__tracker__parse_amount_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "parse_amount",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::tracker::parse_amount(api_text))?;
+                std::result::Result::Ok(output_ok)
+            })())
         },
     )
 }
@@ -867,21 +1168,77 @@ impl SseDecode for bool {
     }
 }
 
+impl SseDecode for crate::api::tracker::CategoryInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        return crate::api::tracker::CategoryInfo {
+            id: var_id,
+            name: var_name,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tracker::CategorySum {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_expenseMinor = <i64>::sse_decode(deserializer);
+        return crate::api::tracker::CategorySum {
+            name: var_name,
+            expense_minor: var_expenseMinor,
+        };
+    }
+}
+
 impl SseDecode for crate::api::tracker::CollectionInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_name = <String>::sse_decode(deserializer);
         let mut var_template = <String>::sse_decode(deserializer);
+        let mut var_view = <crate::api::tracker::CollectionView>::sse_decode(deserializer);
         let mut var_openCount = <u32>::sse_decode(deserializer);
         let mut var_totalCount = <u32>::sse_decode(deserializer);
+        let mut var_monthBalanceMinor = <Option<i64>>::sse_decode(deserializer);
+        let mut var_currency = <Option<String>>::sse_decode(deserializer);
         return crate::api::tracker::CollectionInfo {
             id: var_id,
             name: var_name,
             template: var_template,
+            view: var_view,
             open_count: var_openCount,
             total_count: var_totalCount,
+            month_balance_minor: var_monthBalanceMinor,
+            currency: var_currency,
         };
+    }
+}
+
+impl SseDecode for crate::api::tracker::CollectionView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::tracker::CollectionView::Checklist,
+            1 => crate::api::tracker::CollectionView::Ledger,
+            _ => unreachable!("Invalid variant for CollectionView: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_i64::<NativeEndian>().unwrap()
     }
 }
 
@@ -901,6 +1258,40 @@ impl SseDecode for crate::api::tracker::ItemInfo {
     }
 }
 
+impl SseDecode for crate::api::tracker::LedgerData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_currency = <String>::sse_decode(deserializer);
+        let mut var_categories = <Vec<crate::api::tracker::CategoryInfo>>::sse_decode(deserializer);
+        let mut var_months = <Vec<crate::api::tracker::MonthView>>::sse_decode(deserializer);
+        return crate::api::tracker::LedgerData {
+            currency: var_currency,
+            categories: var_categories,
+            months: var_months,
+        };
+    }
+}
+
+impl SseDecode for crate::api::tracker::LedgerEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_description = <String>::sse_decode(deserializer);
+        let mut var_amountMinor = <i64>::sse_decode(deserializer);
+        let mut var_date = <String>::sse_decode(deserializer);
+        let mut var_categoryId = <Option<String>>::sse_decode(deserializer);
+        let mut var_categoryName = <Option<String>>::sse_decode(deserializer);
+        return crate::api::tracker::LedgerEntry {
+            id: var_id,
+            description: var_description,
+            amount_minor: var_amountMinor,
+            date: var_date,
+            category_id: var_categoryId,
+            category_name: var_categoryName,
+        };
+    }
+}
+
 impl SseDecode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -908,6 +1299,32 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tracker::CategoryInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tracker::CategoryInfo>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tracker::CategorySum> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tracker::CategorySum>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -939,6 +1356,30 @@ impl SseDecode for Vec<crate::api::tracker::ItemInfo> {
     }
 }
 
+impl SseDecode for Vec<crate::api::tracker::LedgerEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tracker::LedgerEntry>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::tracker::MonthView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::tracker::MonthView>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -965,11 +1406,44 @@ impl SseDecode for Vec<crate::api::tracker::TemplateInfo> {
     }
 }
 
+impl SseDecode for crate::api::tracker::MonthView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_year = <i32>::sse_decode(deserializer);
+        let mut var_month = <u32>::sse_decode(deserializer);
+        let mut var_incomeMinor = <i64>::sse_decode(deserializer);
+        let mut var_expenseMinor = <i64>::sse_decode(deserializer);
+        let mut var_balanceMinor = <i64>::sse_decode(deserializer);
+        let mut var_categories = <Vec<crate::api::tracker::CategorySum>>::sse_decode(deserializer);
+        let mut var_entries = <Vec<crate::api::tracker::LedgerEntry>>::sse_decode(deserializer);
+        return crate::api::tracker::MonthView {
+            year: var_year,
+            month: var_month,
+            income_minor: var_incomeMinor,
+            expense_minor: var_expenseMinor,
+            balance_minor: var_balanceMinor,
+            categories: var_categories,
+            entries: var_entries,
+        };
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<String>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<i64>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -1014,13 +1488,6 @@ impl SseDecode for usize {
     }
 }
 
-impl SseDecode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_i32::<NativeEndian>().unwrap()
-    }
-}
-
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -1030,44 +1497,52 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__tracker__Tracker_add_item_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__tracker__Tracker_clear_done_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__tracker__Tracker_collections_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__tracker__Tracker_create_collection_impl(
+        1 => {
+            wire__crate__api__tracker__Tracker_add_category_impl(port, ptr, rust_vec_len, data_len)
+        }
+        2 => wire__crate__api__tracker__Tracker_add_entry_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__tracker__Tracker_add_item_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__tracker__Tracker_clear_done_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__tracker__Tracker_collections_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__tracker__Tracker_create_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        5 => wire__crate__api__tracker__Tracker_delete_collection_impl(
+        7 => wire__crate__api__tracker__Tracker_delete_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        6 => wire__crate__api__tracker__Tracker_delete_item_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__tracker__Tracker_items_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__tracker__Tracker_open_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__tracker__Tracker_rename_collection_impl(
+        8 => wire__crate__api__tracker__Tracker_delete_item_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__tracker__Tracker_items_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__tracker__Tracker_ledger_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__tracker__Tracker_open_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__tracker__Tracker_rename_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__tracker__Tracker_restore_collection_impl(
+        13 => wire__crate__api__tracker__Tracker_restore_collection_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => {
+        14 => {
             wire__crate__api__tracker__Tracker_restore_items_impl(port, ptr, rust_vec_len, data_len)
         }
-        12 => wire__crate__api__tracker__Tracker_set_done_impl(port, ptr, rust_vec_len, data_len),
-        13 => {
+        15 => wire__crate__api__tracker__Tracker_set_done_impl(port, ptr, rust_vec_len, data_len),
+        16 => {
+            wire__crate__api__tracker__Tracker_update_entry_impl(port, ptr, rust_vec_len, data_len)
+        }
+        17 => {
             wire__crate__api__tracker__Tracker_update_item_impl(port, ptr, rust_vec_len, data_len)
         }
-        14 => wire__crate__api__tracker__init_app_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__tracker__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1080,7 +1555,9 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        15 => wire__crate__api__tracker__templates_impl(ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__tracker__format_amount_impl(ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__tracker__parse_amount_impl(ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__tracker__templates_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1103,14 +1580,59 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<Tracker>> for Tracker {
 }
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::CategoryInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::CategoryInfo
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::CategoryInfo>
+    for crate::api::tracker::CategoryInfo
+{
+    fn into_into_dart(self) -> crate::api::tracker::CategoryInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::CategorySum {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.name.into_into_dart().into_dart(),
+            self.expense_minor.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::CategorySum
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::CategorySum>
+    for crate::api::tracker::CategorySum
+{
+    fn into_into_dart(self) -> crate::api::tracker::CategorySum {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::tracker::CollectionInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.id.into_into_dart().into_dart(),
             self.name.into_into_dart().into_dart(),
             self.template.into_into_dart().into_dart(),
+            self.view.into_into_dart().into_dart(),
             self.open_count.into_into_dart().into_dart(),
             self.total_count.into_into_dart().into_dart(),
+            self.month_balance_minor.into_into_dart().into_dart(),
+            self.currency.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1123,6 +1645,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::CollectionInfo>
     for crate::api::tracker::CollectionInfo
 {
     fn into_into_dart(self) -> crate::api::tracker::CollectionInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::CollectionView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Checklist => 0.into_dart(),
+            Self::Ledger => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::CollectionView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::CollectionView>
+    for crate::api::tracker::CollectionView
+{
+    fn into_into_dart(self) -> crate::api::tracker::CollectionView {
         self
     }
 }
@@ -1143,6 +1686,79 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::ItemInfo>
     for crate::api::tracker::ItemInfo
 {
     fn into_into_dart(self) -> crate::api::tracker::ItemInfo {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::LedgerData {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.currency.into_into_dart().into_dart(),
+            self.categories.into_into_dart().into_dart(),
+            self.months.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::LedgerData
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::LedgerData>
+    for crate::api::tracker::LedgerData
+{
+    fn into_into_dart(self) -> crate::api::tracker::LedgerData {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::LedgerEntry {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.description.into_into_dart().into_dart(),
+            self.amount_minor.into_into_dart().into_dart(),
+            self.date.into_into_dart().into_dart(),
+            self.category_id.into_into_dart().into_dart(),
+            self.category_name.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::LedgerEntry
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::LedgerEntry>
+    for crate::api::tracker::LedgerEntry
+{
+    fn into_into_dart(self) -> crate::api::tracker::LedgerEntry {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::tracker::MonthView {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.year.into_into_dart().into_dart(),
+            self.month.into_into_dart().into_dart(),
+            self.income_minor.into_into_dart().into_dart(),
+            self.expense_minor.into_into_dart().into_dart(),
+            self.balance_minor.into_into_dart().into_dart(),
+            self.categories.into_into_dart().into_dart(),
+            self.entries.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::tracker::MonthView
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::tracker::MonthView>
+    for crate::api::tracker::MonthView
+{
+    fn into_into_dart(self) -> crate::api::tracker::MonthView {
         self
     }
 }
@@ -1205,14 +1821,63 @@ impl SseEncode for bool {
     }
 }
 
+impl SseEncode for crate::api::tracker::CategoryInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tracker::CategorySum {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <i64>::sse_encode(self.expense_minor, serializer);
+    }
+}
+
 impl SseEncode for crate::api::tracker::CollectionInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.name, serializer);
         <String>::sse_encode(self.template, serializer);
+        <crate::api::tracker::CollectionView>::sse_encode(self.view, serializer);
         <u32>::sse_encode(self.open_count, serializer);
         <u32>::sse_encode(self.total_count, serializer);
+        <Option<i64>>::sse_encode(self.month_balance_minor, serializer);
+        <Option<String>>::sse_encode(self.currency, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tracker::CollectionView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::tracker::CollectionView::Checklist => 0,
+                crate::api::tracker::CollectionView::Ledger => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for i32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for i64 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_i64::<NativeEndian>(self).unwrap();
     }
 }
 
@@ -1226,12 +1891,53 @@ impl SseEncode for crate::api::tracker::ItemInfo {
     }
 }
 
+impl SseEncode for crate::api::tracker::LedgerData {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.currency, serializer);
+        <Vec<crate::api::tracker::CategoryInfo>>::sse_encode(self.categories, serializer);
+        <Vec<crate::api::tracker::MonthView>>::sse_encode(self.months, serializer);
+    }
+}
+
+impl SseEncode for crate::api::tracker::LedgerEntry {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.description, serializer);
+        <i64>::sse_encode(self.amount_minor, serializer);
+        <String>::sse_encode(self.date, serializer);
+        <Option<String>>::sse_encode(self.category_id, serializer);
+        <Option<String>>::sse_encode(self.category_name, serializer);
+    }
+}
+
 impl SseEncode for Vec<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tracker::CategoryInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tracker::CategoryInfo>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tracker::CategorySum> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tracker::CategorySum>::sse_encode(item, serializer);
         }
     }
 }
@@ -1256,6 +1962,26 @@ impl SseEncode for Vec<crate::api::tracker::ItemInfo> {
     }
 }
 
+impl SseEncode for Vec<crate::api::tracker::LedgerEntry> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tracker::LedgerEntry>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::tracker::MonthView> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::tracker::MonthView>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<u8> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1276,12 +2002,35 @@ impl SseEncode for Vec<crate::api::tracker::TemplateInfo> {
     }
 }
 
+impl SseEncode for crate::api::tracker::MonthView {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.year, serializer);
+        <u32>::sse_encode(self.month, serializer);
+        <i64>::sse_encode(self.income_minor, serializer);
+        <i64>::sse_encode(self.expense_minor, serializer);
+        <i64>::sse_encode(self.balance_minor, serializer);
+        <Vec<crate::api::tracker::CategorySum>>::sse_encode(self.categories, serializer);
+        <Vec<crate::api::tracker::LedgerEntry>>::sse_encode(self.entries, serializer);
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <String>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<i64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <i64>::sse_encode(value, serializer);
         }
     }
 }
@@ -1320,13 +2069,6 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
-    }
-}
-
-impl SseEncode for i32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
     }
 }
 
