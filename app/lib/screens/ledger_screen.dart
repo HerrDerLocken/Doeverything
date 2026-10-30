@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/tracker.dart';
+import '../sync_service.dart';
 import 'common.dart';
 
 /// Haushaltsbuch: Buchungen nach Monat mit Einnahmen, Ausgaben, Saldo und Kategorien.
@@ -8,10 +9,12 @@ class LedgerScreen extends StatefulWidget {
   const LedgerScreen({
     super.key,
     required this.tracker,
+    required this.sync,
     required this.collection,
   });
 
   final Tracker tracker;
+  final SyncService sync;
   final CollectionInfo collection;
 
   @override
@@ -27,10 +30,34 @@ class _LedgerScreenState extends State<LedgerScreen> {
   Tracker get _tracker => widget.tracker;
   String get _id => widget.collection.id;
 
+  int _seenVersion = 0;
+
   @override
   void initState() {
     super.initState();
+    _seenVersion = widget.sync.dataVersion;
+    widget.sync.addListener(_onSync);
     _load();
+  }
+
+  @override
+  void dispose() {
+    widget.sync.removeListener(_onSync);
+    super.dispose();
+  }
+
+  /// Ein Sync hat neue Daten geholt.
+  void _onSync() {
+    if (widget.sync.dataVersion != _seenVersion) {
+      _seenVersion = widget.sync.dataVersion;
+      _load();
+    }
+  }
+
+  /// Nach einer lokalen Änderung: neu laden und bald synchronisieren.
+  Future<void> _changed() async {
+    widget.sync.schedule();
+    await _load();
   }
 
   Future<void> _load() async {
@@ -55,7 +82,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
       () => _tracker.addCategory(collectionId: _id, name: name),
     );
     if (id == null) return null;
-    await _load();
+    await _changed();
     return CategoryInfo(id: id, name: name);
   }
 
@@ -80,7 +107,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
         categoryId: result.categoryId,
       ),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _edit(LedgerEntry entry) async {
@@ -105,20 +132,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
         categoryId: result.categoryId,
       ),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _delete(LedgerEntry entry) async {
     setState(() => _hidden.add(entry.id));
     await guarded(context, () => _tracker.deleteItem(itemId: entry.id));
-    await _load();
+    await _changed();
     if (!mounted) return;
     final label = entry.description.isEmpty
         ? _money(entry.amountMinor)
         : '„${entry.description}“';
     showUndo(context, '$label gelöscht', () async {
       await _tracker.restoreItems(itemIds: [entry.id]);
-      await _load();
+      await _changed();
     });
   }
 

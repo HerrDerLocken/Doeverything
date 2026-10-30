@@ -5,9 +5,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'database.dart';
+import 'screens/common.dart' show errorText;
 import 'screens/home_screen.dart';
 import 'src/rust/api/tracker.dart';
 import 'src/rust/frb_generated.dart';
+import 'sync_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +22,13 @@ Future<void> main() async {
       dbPath: dbPath,
       keys: const SecureKeyStore(),
     );
-    runApp(DoeverythingApp(home: HomeScreen(tracker: tracker)));
+    final sync = SyncService(tracker);
+    await sync.start();
+    runApp(
+      DoeverythingApp(
+        home: HomeScreen(tracker: tracker, sync: sync),
+      ),
+    );
   } catch (e) {
     runApp(
       DoeverythingApp(
@@ -92,7 +100,7 @@ class StartupErrorScreen extends StatelessWidget {
               Text(hint),
               const SizedBox(height: 16),
               SelectableText(
-                '$error\n\nDatei: $dbPath',
+                '${errorText(error)}\n\nDatei: $dbPath',
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -104,5 +112,10 @@ class StartupErrorScreen extends StatelessWidget {
 }
 
 /// Für Tests: App mit bereits geöffnetem Tracker.
-Widget appWith(Tracker tracker) =>
-    DoeverythingApp(home: HomeScreen(tracker: tracker));
+Future<Widget> appWith(Tracker tracker) async {
+  final sync = SyncService(tracker);
+  await sync.start();
+  return DoeverythingApp(
+    home: HomeScreen(tracker: tracker, sync: sync),
+  );
+}

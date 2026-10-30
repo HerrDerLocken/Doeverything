@@ -1,6 +1,6 @@
 # Datenmodell & Sync-Protokoll
 
-Status: Entwurf v0.2 · 2026-10-30
+Status: Entwurf v0.3 · 2026-10-30
 
 Dieses Dokument legt fest, wie Daten lokal strukturiert sind, wie Änderungen
 zwischen Geräten ausgetauscht werden (Server und LAN) und wie sie verschlüsselt
@@ -350,6 +350,24 @@ Ohne Kamera (Desktop ↔ Desktop): 8-stelliger Code + SPAKE2 statt QR.
 
 ---
 
+### 5.5 Umsetzungsstand (v0.3)
+
+Umgesetzt in `crates/proto/src/crypto.rs`, `crates/server`, `crates/sync`. Abweichungen vom Entwurf:
+
+- **Space-Schlüssel** werden per HKDF aus dem Account Root Key abgeleitet
+  (`space_key(ARK, space, epoch)`), statt zufällig erzeugt und gewrappt. Einfacher; Folge: Ein
+  entferntes Gerät kennt den ARK, echte Rotation braucht daher einen neuen ARK.
+- **Geräteliste** liegt vorerst auf dem Server (`/v1/devices`), nicht als E2E-synchronisierte
+  Collection. Der Server könnte ein fremdes Gerät eintragen, dessen Pakete aber nicht
+  entschlüsselt werden können (AEAD mit Space-Schlüssel), und es bekäme den ARK nicht.
+- **Kopplung** per Text-Code (`DOE1-…`) statt QR, sonst wie 5.4: Code enthält nur öffentliche
+  Schlüssel und ein Einmal-Geheimnis. Das bestehende Gerät registriert das neue und legt den ARK
+  verschlüsselt (X25519 + HKDF mit Einmal-Geheimnis) ins Server-Postfach. QR folgt.
+- **Kein Recovery Key** bisher. Verlorene Geräte = verlorene Daten, solange nicht ein weiteres
+  Gerät gekoppelt ist.
+- **Push nur eigener Changesets**: Ein Gerät kann fremde nicht in deren Namen signieren.
+  Für LAN-Sync müssen Envelopes daher künftig unverändert gespeichert und weitergereicht werden.
+
 ## 6. Sync-Protokoll
 
 ### 6.1 Grundmechanik (für alle Gegenstellen gleich)
@@ -395,6 +413,13 @@ seq, Zeitpunkt, Größenstufe. **Was er nicht sieht:** Inhalte, Namen von
 Listen/Feldern, Anzahl der Einträge, Feldtypen.
 
 HTTP-API (v1):
+
+Tatsächliche Endpunkte (v1): `POST /v1/account`, `POST /v1/auth/challenge`, `POST /v1/auth/verify`,
+`GET|POST /v1/devices`, `GET /v1/spaces`, `GET /v1/spaces/{id}/vv`, `POST /v1/spaces/{id}/push`,
+`GET /v1/spaces/{id}/pull?after=N`, `PUT|GET|DELETE /v1/pairing/{id}`. Bodies als CBOR. Noch nicht
+umgesetzt: Snapshots, Blobs, WebSocket-Benachrichtigung, Account löschen.
+
+Ursprünglicher Entwurf:
 
 | Methode | Pfad | Zweck |
 |---|---|---|

@@ -1,0 +1,21 @@
+[package]
+name = "doeverything-sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+base64 = "0.23.1"
+doeverything-core = { version = "0.1.0", path = "../core" }
+doeverything-proto = { version = "0.1.0", path = "../proto" }
+serde = "1.0.229"
+ureq = "3.5.0"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+doeverything-server = { path = "../server" }
+tempfile = "3.27.0"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "net"] }

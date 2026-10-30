@@ -12,7 +12,12 @@ crate-type = ["cdylib", "staticlib"]
 anyhow = "1.0.104"
 doeverything-core = { version = "0.1.0", path = "../../crates/core" }
 doeverything-store = { version = "0.1.0", path = "../../crates/store", features = ["sqlcipher"] }
+doeverything-sync = { version = "0.1.0", path = "../../crates/sync" }
 flutter_rust_bridge = "=2.13.0"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
+
+[dev-dependencies]
+doeverything-server = { path = "../../crates/server" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "net"] }

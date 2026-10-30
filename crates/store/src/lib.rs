@@ -454,6 +454,29 @@ impl Store for SqliteStore {
         Ok(out)
     }
 
+    fn meta(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        Ok(self
+            .conn
+            .query_row("SELECT value FROM meta WHERE key = ?1", params![key], |r| {
+                r.get(0)
+            })
+            .optional()?)
+    }
+
+    fn set_meta(&mut self, key: &str, value: Option<&[u8]>) -> Result<()> {
+        match value {
+            Some(v) => self.conn.execute(
+                "INSERT INTO meta (key, value) VALUES (?1, ?2)
+                 ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+                params![key, v],
+            )?,
+            None => self
+                .conn
+                .execute("DELETE FROM meta WHERE key = ?1", params![key])?,
+        };
+        Ok(())
+    }
+
     fn spaces(&self) -> Result<Vec<EntityId>> {
         let found =
             self.load_entities("e.kind = ?1 AND e.deleted = 0", params![Kind::Space.code()])?;

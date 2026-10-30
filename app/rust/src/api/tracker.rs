@@ -137,12 +137,37 @@ pub fn parse_amount(text: String) -> Option<i64> {
 
 #[frb(opaque)]
 pub struct Tracker {
-    inner: Mutex<Inner>,
+    replica: Mutex<Replica<SqliteStore>>,
+    /// Verhindert, dass Timer und Knopfdruck gleichzeitig synchronisieren.
+    sync_running: Mutex<()>,
 }
 
-struct Inner {
-    replica: Replica<SqliteStore>,
-    space: EntityId,
+/// Zugriff auf die gesperrte Replica innerhalb von [`Tracker::with`].
+struct Inner<'a> {
+    replica: &'a mut Replica<SqliteStore>,
+}
+
+pub enum SyncMode {
+    Off,
+    /// Wartet auf Bestätigung durch ein bestehendes Gerät; `code` dort eingeben.
+    Pairing,
+    Connected,
+}
+
+pub struct SyncState {
+    pub mode: SyncMode,
+    pub server: Option<String>,
+    /// Nur `Pairing`: Kopplungscode zum Eingeben auf dem bestehenden Gerät.
+    pub code: Option<String>,
+    /// Nur `Connected`: Account-ID (hex), zur Anzeige.
+    pub account: Option<String>,
+}
+
+pub struct SyncResult {
+    pub pushed: u32,
+    pub pulled: u32,
+    /// `true`, wenn bereits ein Sync lief und dieser Aufruf nichts getan hat.
+    pub skipped: bool,
 }
 
 /// Felder einer Collection, über ihre Rolle aufgelöst.
@@ -232,13 +257,88 @@ impl Tracker {
         let store = SqliteStore::open(&db_path, Some(&key))
             .with_context(|| format!("Datenbank {db_path} öffnen (falscher Schlüssel?)"))?;
         let mut replica = Replica::open(store)?;
-        let space = match replica.store().spaces()?.first() {
-            Some(space) => *space,
-            None => replica.create_space("Privat", now_ms())?,
-        };
+        Inner {
+            replica: &mut replica,
+        }
+        .primary_space()?;
         Ok(Self {
-            inner: Mutex::new(Inner { replica, space }),
+            replica: Mutex::new(replica),
+            sync_running: Mutex::new(()),
         })
+    }
+
+    pub fn sync_status(&self) -> Result<SyncState> {
+        use doeverything_sync::SyncStatus;
+        let off = SyncState {
+            mode: SyncMode::Off,
+            server: None,
+            code: None,
+            account: None,
+        };
+        Ok(match doeverything_sync::status(&self.replica)? {
+            SyncStatus::Off => off,
+            SyncStatus::Pairing { server, code } => SyncState {
+                mode: SyncMode::Pairing,
+                server: Some(server),
+                code: Some(code),
+                ..off
+            },
+            SyncStatus::Connected { server, account } => SyncState {
+                mode: SyncMode::Connected,
+                server: Some(server),
+                account: Some(account),
+                ..off
+            },
+        })
+    }
+
+    /// Erstes Gerät: legt auf dem Server einen neuen Account an.
+    pub fn sync_create_account(&self, server: String, device_name: String) -> Result<()> {
+        Ok(doeverything_sync::create_account(
+            &self.replica,
+            &server,
+            &device_name,
+        )?)
+    }
+
+    /// Weiteres Gerät: liefert den Kopplungscode, der auf einem bestehenden Gerät eingegeben wird.
+    pub fn sync_start_pairing(&self, server: String, device_name: String) -> Result<String> {
+        Ok(doeverything_sync::start_pairing(
+            &self.replica,
+            &server,
+            &device_name,
+        )?)
+    }
+
+    /// Bestehendes Gerät: bestätigt einen Kopplungscode, gibt den Gerätenamen zurück.
+    pub fn sync_approve_pairing(&self, code: String) -> Result<String> {
+        Ok(doeverything_sync::approve_pairing(&self.replica, &code)?)
+    }
+
+    /// Weiteres Gerät: `true`, sobald die Kopplung bestätigt und abgeschlossen ist.
+    pub fn sync_finish_pairing(&self) -> Result<bool> {
+        Ok(doeverything_sync::finish_pairing(&self.replica)?)
+    }
+
+    pub fn sync_now(&self) -> Result<SyncResult> {
+        let Ok(_running) = self.sync_running.try_lock() else {
+            return Ok(SyncResult {
+                pushed: 0,
+                pulled: 0,
+                skipped: true,
+            });
+        };
+        let report = doeverything_sync::sync(&self.replica)?;
+        Ok(SyncResult {
+            pushed: report.pushed,
+            pulled: report.pulled,
+            skipped: false,
+        })
+    }
+
+    /// Trennt dieses Gerät vom Sync; lokale Daten bleiben erhalten.
+    pub fn sync_disconnect(&self) -> Result<()> {
+        Ok(doeverything_sync::disconnect(&self.replica)?)
     }
 
     /// Alle Listen. `today` (`YYYY-MM-DD`) bestimmt den Monat für den Saldo von Haushaltsbüchern.
@@ -246,7 +346,8 @@ impl Tracker {
         let today = Date::parse_iso(&today).ok_or_else(|| anyhow!("ungültiges Datum {today:?}"))?;
         self.with(|i| {
             let mut out = Vec::new();
-            for (id, c) in i.replica.children(i.space, Kind::Collection)? {
+            let collections = i.all_collections()?;
+            for (id, c) in collections {
                 let fields = i.fields(id)?;
                 let items = i.replica.children(id, Kind::Record)?;
                 let view = fields.view();
@@ -421,7 +522,7 @@ impl Tracker {
         let template = templates::by_id(&template_id)
             .ok_or_else(|| anyhow!("unbekannte Vorlage {template_id}"))?;
         self.with(|i| {
-            let space = i.space;
+            let space = i.primary_space()?;
             let last = i
                 .replica
                 .children(space, Kind::Collection)?
@@ -496,7 +597,8 @@ impl Tracker {
                 .children(collection, Kind::Record)?
                 .last()
                 .map(|(_, e)| text(e, SysField::Order));
-            let id = i.replica.transact(i.space, now_ms(), |tx| {
+            let space = i.space_of(collection)?;
+            let id = i.replica.transact(space, now_ms(), |tx| {
                 let item = tx.create(Kind::Record, Some(collection));
                 tx.set(item, title_field, title);
                 if let Some(done) = fields.done {
@@ -528,7 +630,8 @@ impl Tracker {
         let item = parse(&item_id)?;
         self.with(|i| {
             let fields = i.fields_of_item(item)?;
-            i.replica.transact(i.space, now_ms(), |tx| {
+            let space = i.space_of(item)?;
+            i.replica.transact(space, now_ms(), |tx| {
                 if let Some(f) = fields.title {
                     tx.set(item, f, title);
                 }
@@ -564,9 +667,16 @@ impl Tracker {
             .map(|s| parse(s))
             .collect::<Result<Vec<_>>>()?;
         self.with(|i| {
-            i.replica.transact(i.space, now_ms(), |tx| {
-                ids.iter().for_each(|id| tx.restore(*id))
-            })?;
+            let mut by_space: std::collections::BTreeMap<EntityId, Vec<EntityId>> =
+                Default::default();
+            for id in ids {
+                by_space.entry(i.space_of(id)?).or_default().push(id);
+            }
+            for (space, ids) in by_space {
+                i.replica.transact(space, now_ms(), |tx| {
+                    ids.iter().for_each(|id| tx.restore(*id))
+                })?;
+            }
             Ok(())
         })
     }
@@ -583,27 +693,67 @@ impl Tracker {
                 .filter(|(_, e)| fields.is_done(e))
                 .map(|(id, _)| id)
                 .collect();
-            i.replica.transact(i.space, now_ms(), |tx| {
+            let space = i.space_of(collection)?;
+            i.replica.transact(space, now_ms(), |tx| {
                 done.iter().for_each(|id| tx.delete(*id))
             })?;
             Ok(done.iter().map(ToString::to_string).collect())
         })
     }
 
-    fn with<R>(&self, f: impl FnOnce(&mut Inner) -> Result<R>) -> Result<R> {
-        let mut inner = self
-            .inner
+    fn with<R>(&self, f: impl FnOnce(&mut Inner<'_>) -> Result<R>) -> Result<R> {
+        let mut replica = self
+            .replica
             .lock()
             .map_err(|_| anyhow!("interner Zustand nach Absturz gesperrt"))?;
-        f(&mut inner)
+        f(&mut Inner {
+            replica: &mut replica,
+        })
     }
 }
 
-impl Inner {
+impl Inner<'_> {
+    /// Space für neue Listen: der älteste (UUIDv7 ist zeitlich sortiert). Nach dem Koppeln
+    /// wählen dadurch alle Geräte denselben, auch wenn jedes vorher einen eigenen hatte.
+    fn primary_space(&mut self) -> Result<EntityId> {
+        match self.replica.store().spaces()?.first() {
+            Some(space) => Ok(*space),
+            None => Ok(self.replica.create_space("Privat", now_ms())?),
+        }
+    }
+
+    /// Listen aller Spaces; die des primären Space zuerst.
+    fn all_collections(&self) -> Result<Vec<(EntityId, Entity)>> {
+        let mut out = Vec::new();
+        for space in self.replica.store().spaces()? {
+            out.extend(self.replica.children(space, Kind::Collection)?);
+        }
+        Ok(out)
+    }
+
+    /// Space, zu dem eine Entity gehört (über die Elternkette).
+    fn space_of(&self, id: EntityId) -> Result<EntityId> {
+        let mut current = id;
+        for _ in 0..8 {
+            let entity = self
+                .replica
+                .entity(current)?
+                .ok_or_else(|| anyhow!("Eintrag {current} existiert nicht"))?;
+            if entity.kind == Some(Kind::Space) {
+                return Ok(current);
+            }
+            current = entity
+                .parent
+                .ok_or_else(|| anyhow!("{current} hängt an keinem Space"))?;
+        }
+        Err(anyhow!("Elternkette von {id} zu lang"))
+    }
+
     fn set(&mut self, id: EntityId, key: impl Into<FieldKey>, value: Value) -> Result<()> {
         let key = key.into();
+        let space = self.space_of(id)?;
         self.replica
-            .transact(self.space, now_ms(), |tx| tx.set(id, key, value))?;
+            .transact(space, now_ms(), |tx| tx.set(id, key, value))?;
         Ok(())
     }
 
@@ -666,7 +816,8 @@ impl Inner {
                 .last()
                 .map(|(_, e)| text(e, SysField::Order)),
         };
-        let id = self.replica.transact(self.space, now_ms(), |tx| {
+        let space = self.space_of(collection)?;
+        let id = self.replica.transact(space, now_ms(), |tx| {
             let id = entry.unwrap_or_else(|| tx.create(Kind::Record, Some(collection)));
             if let Some(f) = fields.title {
                 tx.set(id, f, description.trim());
@@ -1005,5 +1156,101 @@ mod tests {
         ));
         let listen = t.collections("2026-10-30".into()).unwrap();
         assert_eq!((listen.len(), listen[0].id.clone()), (1, liste.to_string()));
+    }
+
+    fn test_server() -> String {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                tx.send(listener.local_addr().unwrap()).unwrap();
+                let state = doeverything_server::AppState::in_memory(true).unwrap();
+                doeverything_server::serve(listener, state, std::future::pending())
+                    .await
+                    .unwrap();
+            });
+        });
+        format!("http://{}", rx.recv().unwrap())
+    }
+
+    #[test]
+    fn zwei_geraete_ueber_server() {
+        let server = test_server();
+        let (_d1, handy) = tracker();
+        let (_d2, laptop) = tracker();
+        let heute = || "2026-10-30".to_string();
+
+        let liste = handy
+            .create_collection("Einkauf".into(), "shopping@1".into())
+            .unwrap();
+        handy.add_item(liste.clone(), "Milch".into(), None).unwrap();
+        // Laptop hatte vor dem Koppeln schon eine eigene Liste
+        laptop
+            .create_collection("Uni".into(), "todo@1".into())
+            .unwrap();
+
+        assert!(matches!(handy.sync_status().unwrap().mode, SyncMode::Off));
+        handy
+            .sync_create_account(server.clone(), "Handy".into())
+            .unwrap();
+        handy.sync_now().unwrap();
+
+        let code = laptop
+            .sync_start_pairing(server.clone(), "Laptop".into())
+            .unwrap();
+        assert!(matches!(
+            laptop.sync_status().unwrap().mode,
+            SyncMode::Pairing
+        ));
+        assert!(!laptop.sync_finish_pairing().unwrap());
+        assert_eq!(handy.sync_approve_pairing(code).unwrap(), "Laptop");
+        assert!(laptop.sync_finish_pairing().unwrap());
+
+        let r = laptop.sync_now().unwrap();
+        assert!(r.pulled > 0 && r.pushed > 0 && !r.skipped);
+        handy.sync_now().unwrap();
+
+        let namen = |t: &Tracker| {
+            let mut n: Vec<_> = t
+                .collections(heute())
+                .unwrap()
+                .into_iter()
+                .map(|c| c.name)
+                .collect();
+            n.sort();
+            n
+        };
+        assert_eq!(namen(&handy), ["Einkauf", "Uni"]);
+        assert_eq!(namen(&laptop), ["Einkauf", "Uni"]);
+
+        // Änderungen auf dem Laptop, auch in der fremden Liste
+        let brot = laptop
+            .add_item(liste.clone(), "Brot".into(), Some("1".into()))
+            .unwrap();
+        laptop.set_done(brot.clone(), true).unwrap();
+        laptop.sync_now().unwrap();
+        handy.sync_now().unwrap();
+        let items = handy.items(liste.clone()).unwrap();
+        let titel: Vec<_> = items.iter().map(|i| (i.title.as_str(), i.done)).collect();
+        assert_eq!(titel, [("Milch", false), ("Brot", true)]);
+
+        // Neue Listen landen auf beiden Geräten im selben (ältesten) Space
+        let neu = laptop
+            .create_collection("Neu".into(), "todo@1".into())
+            .unwrap();
+        laptop.sync_now().unwrap();
+        handy.sync_now().unwrap();
+        let space_handy = handy.with(|i| i.space_of(parse(&neu)?)).unwrap();
+        let space_liste = handy.with(|i| i.space_of(parse(&liste)?)).unwrap();
+        assert_eq!(space_handy, space_liste);
+
+        laptop.sync_disconnect().unwrap();
+        assert!(matches!(laptop.sync_status().unwrap().mode, SyncMode::Off));
+        assert_eq!(
+            namen(&laptop),
+            ["Einkauf", "Neu", "Uni"],
+            "lokale Daten bleiben"
+        );
     }
 }

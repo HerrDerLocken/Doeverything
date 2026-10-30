@@ -1,12 +1,25 @@
 # Lokal: `podman compose up --build` · Mit Docker: `docker compose up --build`
+#
+# Für den Betrieb im Internet einen Reverse-Proxy mit TLS davorschalten (z. B. Caddy),
+# die App dann mit https://… verbinden. Ohne TLS nur im eigenen Netz verwenden.
 services:
   server:
     build: .
     image: localhost/doeverything-server:dev
     ports:
-      - "127.0.0.1:8080:8080"
+      # Nur lokal erreichbar. Für andere Geräte im Heimnetz: "${DOEVERYTHING_PORT:-8080}:8080"
+      # Anderer Port: DOEVERYTHING_PORT=18080 podman compose up
+      - "127.0.0.1:${DOEVERYTHING_PORT:-8080}:8080"
+    environment:
+      # "false", sobald alle eigenen Geräte ein Konto haben
+      DOEVERYTHING_OPEN_REGISTRATION: "true"
+    volumes:
+      - server-data:/data
     read_only: true
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+
+volumes:
+  server-data:

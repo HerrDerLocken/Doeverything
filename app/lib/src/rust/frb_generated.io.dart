@@ -125,6 +125,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  SyncMode dco_decode_sync_mode(dynamic raw);
+
+  @protected
+  SyncResult dco_decode_sync_result(dynamic raw);
+
+  @protected
+  SyncState dco_decode_sync_state(dynamic raw);
+
+  @protected
   TemplateInfo dco_decode_template_info(dynamic raw);
 
   @protected
@@ -243,6 +252,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  SyncMode sse_decode_sync_mode(SseDeserializer deserializer);
+
+  @protected
+  SyncResult sse_decode_sync_result(SseDeserializer deserializer);
+
+  @protected
+  SyncState sse_decode_sync_state(SseDeserializer deserializer);
 
   @protected
   TemplateInfo sse_decode_template_info(SseDeserializer deserializer);
@@ -396,6 +414,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     PlatformInt64? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_sync_mode(SyncMode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_result(SyncResult self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sync_state(SyncState self, SseSerializer serializer);
 
   @protected
   void sse_encode_template_info(TemplateInfo self, SseSerializer serializer);

@@ -78,6 +78,13 @@ impl<S: Store> Replica<S> {
         &self.store
     }
 
+    /// Schreibzugriff auf den Speicher, gedacht für [`Store::set_meta`]. Daten nie direkt
+    /// ändern, sondern über [`Self::transact`] und [`Self::receive`], sonst stimmen Log und
+    /// Version Vector nicht mehr.
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.store
+    }
+
     pub fn into_store(self) -> S {
         self.store
     }

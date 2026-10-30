@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/proto", "crates/server", "crates/store", "app/rust"]
+members = ["crates/core", "crates/proto", "crates/server", "crates/store", "app/rust", "crates/sync"]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,3 +15,8 @@ unsafe_code = "forbid"
 pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
+
+# Abhängigkeiten (v. a. Kryptografie) auch im Debug-Build optimieren; sonst ist Sync beim
+# Entwickeln ~30× langsamer. Eigener Code bleibt unoptimiert und gut debugbar.
+[profile.dev.package."*"]
+opt-level = 2

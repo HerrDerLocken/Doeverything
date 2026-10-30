@@ -24,6 +24,7 @@ macro_rules! konformitaets_tests {
             geraet_mit_falscher_uhr_wird_markiert,
             alle_werttypen_bleiben_erhalten,
             spaces_werden_gelistet,
+            meta_speichern_und_loeschen,
         );
     };
     (@tests $neuer_store:expr; $($name:ident),* $(,)?) => {
@@ -406,4 +407,17 @@ pub fn spaces_werden_gelistet<S: Store>(neu: impl Fn() -> S) {
     assert_eq!(r.store().spaces().unwrap(), [privat, familie]);
     r.transact(familie, 2000, |tx| tx.delete(familie)).unwrap();
     assert_eq!(r.store().spaces().unwrap(), [privat]);
+}
+
+pub fn meta_speichern_und_loeschen<S: Store>(neu: impl Fn() -> S) {
+    let mut store = neu();
+    assert_eq!(store.meta("sync.server").unwrap(), None);
+    store.set_meta("sync.server", Some(b"https://a")).unwrap();
+    store.set_meta("sync.server", Some(b"https://b")).unwrap();
+    assert_eq!(
+        store.meta("sync.server").unwrap().as_deref(),
+        Some(&b"https://b"[..])
+    );
+    store.set_meta("sync.server", None).unwrap();
+    assert_eq!(store.meta("sync.server").unwrap(), None);
 }

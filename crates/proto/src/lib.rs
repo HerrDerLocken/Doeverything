@@ -6,6 +6,9 @@ use std::collections::BTreeMap;
 use doeverything_core::{DeviceId, EntityId};
 use serde::{Deserialize, Serialize};
 
+pub mod api;
+pub mod crypto;
+
 pub const PROTOCOL_VERSION: u16 = 1;
 
 /// Für den Server lesbarer Kopf eines Changesets. Wird bei der Verschlüsselung als

@@ -69,7 +69,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -545057465;
+  int get rustContentHash => -288725990;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -165,6 +165,31 @@ abstract class RustLibApi extends BaseApi {
     required String itemId,
     required bool done,
   });
+
+  Future<String> crateApiTrackerTrackerSyncApprovePairing({
+    required Tracker that,
+    required String code,
+  });
+
+  Future<void> crateApiTrackerTrackerSyncCreateAccount({
+    required Tracker that,
+    required String server,
+    required String deviceName,
+  });
+
+  Future<void> crateApiTrackerTrackerSyncDisconnect({required Tracker that});
+
+  Future<bool> crateApiTrackerTrackerSyncFinishPairing({required Tracker that});
+
+  Future<SyncResult> crateApiTrackerTrackerSyncNow({required Tracker that});
+
+  Future<String> crateApiTrackerTrackerSyncStartPairing({
+    required Tracker that,
+    required String server,
+    required String deviceName,
+  });
+
+  Future<SyncState> crateApiTrackerTrackerSyncStatus({required Tracker that});
 
   Future<void> crateApiTrackerTrackerUpdateEntry({
     required Tracker that,
@@ -814,6 +839,256 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<String> crateApiTrackerTrackerSyncApprovePairing({
+    required Tracker that,
+    required String code,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(code, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncApprovePairingConstMeta,
+        argValues: [that, code],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncApprovePairingConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_sync_approve_pairing",
+        argNames: ["that", "code"],
+      );
+
+  @override
+  Future<void> crateApiTrackerTrackerSyncCreateAccount({
+    required Tracker that,
+    required String server,
+    required String deviceName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(server, serializer);
+          sse_encode_String(deviceName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncCreateAccountConstMeta,
+        argValues: [that, server, deviceName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncCreateAccountConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_sync_create_account",
+        argNames: ["that", "server", "deviceName"],
+      );
+
+  @override
+  Future<void> crateApiTrackerTrackerSyncDisconnect({required Tracker that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncDisconnectConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncDisconnectConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_sync_disconnect",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<bool> crateApiTrackerTrackerSyncFinishPairing({
+    required Tracker that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncFinishPairingConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncFinishPairingConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_sync_finish_pairing",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<SyncResult> crateApiTrackerTrackerSyncNow({required Tracker that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sync_result,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncNowConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncNowConstMeta =>
+      const TaskConstMeta(debugName: "Tracker_sync_now", argNames: ["that"]);
+
+  @override
+  Future<String> crateApiTrackerTrackerSyncStartPairing({
+    required Tracker that,
+    required String server,
+    required String deviceName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          sse_encode_String(server, serializer);
+          sse_encode_String(deviceName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncStartPairingConstMeta,
+        argValues: [that, server, deviceName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncStartPairingConstMeta =>
+      const TaskConstMeta(
+        debugName: "Tracker_sync_start_pairing",
+        argNames: ["that", "server", "deviceName"],
+      );
+
+  @override
+  Future<SyncState> crateApiTrackerTrackerSyncStatus({required Tracker that}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerTracker(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sync_state,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+        constMeta: kCrateApiTrackerTrackerSyncStatusConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTrackerTrackerSyncStatusConstMeta =>
+      const TaskConstMeta(debugName: "Tracker_sync_status", argNames: ["that"]);
+
+  @override
   Future<void> crateApiTrackerTrackerUpdateEntry({
     required Tracker that,
     required String entryId,
@@ -838,7 +1113,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 23,
             port: port_,
           );
         },
@@ -887,7 +1162,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 24,
             port: port_,
           );
         },
@@ -915,7 +1190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(dbPath, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_database_state,
@@ -942,7 +1217,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_i_64(minor, serializer);
           sse_encode_String(currency, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 26)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -967,7 +1242,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 27)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -992,7 +1267,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1017,7 +1292,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(text, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 29)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_i_64,
@@ -1039,7 +1314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 30)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_template_info,
@@ -1310,6 +1585,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
+  }
+
+  @protected
+  SyncMode dco_decode_sync_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SyncMode.values[raw as int];
+  }
+
+  @protected
+  SyncResult dco_decode_sync_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return SyncResult(
+      pushed: dco_decode_u_32(arr[0]),
+      pulled: dco_decode_u_32(arr[1]),
+      skipped: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
+  SyncState dco_decode_sync_state(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SyncState(
+      mode: dco_decode_sync_mode(arr[0]),
+      server: dco_decode_opt_String(arr[1]),
+      code: dco_decode_opt_String(arr[2]),
+      account: dco_decode_opt_String(arr[3]),
+    );
   }
 
   @protected
@@ -1682,6 +1990,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncMode sse_decode_sync_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SyncMode.values[inner];
+  }
+
+  @protected
+  SyncResult sse_decode_sync_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_pushed = sse_decode_u_32(deserializer);
+    var var_pulled = sse_decode_u_32(deserializer);
+    var var_skipped = sse_decode_bool(deserializer);
+    return SyncResult(
+      pushed: var_pushed,
+      pulled: var_pulled,
+      skipped: var_skipped,
+    );
+  }
+
+  @protected
+  SyncState sse_decode_sync_state(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mode = sse_decode_sync_mode(deserializer);
+    var var_server = sse_decode_opt_String(deserializer);
+    var var_code = sse_decode_opt_String(deserializer);
+    var var_account = sse_decode_opt_String(deserializer);
+    return SyncState(
+      mode: var_mode,
+      server: var_server,
+      code: var_code,
+      account: var_account,
+    );
+  }
+
+  @protected
   TemplateInfo sse_decode_template_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -2017,6 +2360,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sync_mode(SyncMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_result(SyncResult self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.pushed, serializer);
+    sse_encode_u_32(self.pulled, serializer);
+    sse_encode_bool(self.skipped, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_state(SyncState self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sync_mode(self.mode, serializer);
+    sse_encode_opt_String(self.server, serializer);
+    sse_encode_opt_String(self.code, serializer);
+    sse_encode_opt_String(self.account, serializer);
+  }
+
+  @protected
   void sse_encode_template_info(TemplateInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -2173,6 +2539,46 @@ class TrackerImpl extends RustOpaque implements Tracker {
       .instance
       .api
       .crateApiTrackerTrackerSetDone(that: this, itemId: itemId, done: done);
+
+  /// Bestehendes Gerät: bestätigt einen Kopplungscode, gibt den Gerätenamen zurück.
+  Future<String> syncApprovePairing({required String code}) => RustLib
+      .instance
+      .api
+      .crateApiTrackerTrackerSyncApprovePairing(that: this, code: code);
+
+  /// Erstes Gerät: legt auf dem Server einen neuen Account an.
+  Future<void> syncCreateAccount({
+    required String server,
+    required String deviceName,
+  }) => RustLib.instance.api.crateApiTrackerTrackerSyncCreateAccount(
+    that: this,
+    server: server,
+    deviceName: deviceName,
+  );
+
+  /// Trennt dieses Gerät vom Sync; lokale Daten bleiben erhalten.
+  Future<void> syncDisconnect() =>
+      RustLib.instance.api.crateApiTrackerTrackerSyncDisconnect(that: this);
+
+  /// Weiteres Gerät: `true`, sobald die Kopplung bestätigt und abgeschlossen ist.
+  Future<bool> syncFinishPairing() =>
+      RustLib.instance.api.crateApiTrackerTrackerSyncFinishPairing(that: this);
+
+  Future<SyncResult> syncNow() =>
+      RustLib.instance.api.crateApiTrackerTrackerSyncNow(that: this);
+
+  /// Weiteres Gerät: liefert den Kopplungscode, der auf einem bestehenden Gerät eingegeben wird.
+  Future<String> syncStartPairing({
+    required String server,
+    required String deviceName,
+  }) => RustLib.instance.api.crateApiTrackerTrackerSyncStartPairing(
+    that: this,
+    server: server,
+    deviceName: deviceName,
+  );
+
+  Future<SyncState> syncStatus() =>
+      RustLib.instance.api.crateApiTrackerTrackerSyncStatus(that: this);
 
   Future<void> updateEntry({
     required String entryId,

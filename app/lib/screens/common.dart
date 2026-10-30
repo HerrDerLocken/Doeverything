@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 
 /// Symbol je Modul-Vorlage (`todo@1`, `shopping@1`, …).
 IconData templateIcon(String template) => switch (template.split('@').first) {
@@ -8,6 +9,13 @@ IconData templateIcon(String template) => switch (template.split('@').first) {
   _ => Icons.list_alt,
 };
 
+/// Lesbare Fehlermeldung: bei Rust-Fehlern nur die Meldung samt Ursachen, ohne Stacktrace.
+String errorText(Object error) {
+  final raw = error is AnyhowException ? error.message : '$error';
+  final cut = raw.indexOf('\n\nStack backtrace:');
+  return (cut >= 0 ? raw.substring(0, cut) : raw).trim();
+}
+
 /// Führt eine Aktion aus und zeigt Fehler als Snackbar statt abzustürzen.
 Future<T?> guarded<T>(BuildContext context, Future<T> Function() action) async {
   try {
@@ -15,7 +23,7 @@ Future<T?> guarded<T>(BuildContext context, Future<T> Function() action) async {
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Fehler: $e')));
+          .showSnackBar(SnackBar(content: Text('Fehler: ${errorText(e)}')));
     }
     return null;
   }

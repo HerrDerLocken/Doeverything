@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `categories`, `collection_of`, `count`, `currency`, `entity`, `fields_of_item`, `fields`, `is_done`, `ledger_entry`, `parse`, `set`, `text`, `view`, `with`, `write_entry`
+// These functions are ignored because they are not marked as `pub`: `all_collections`, `categories`, `collection_of`, `count`, `currency`, `entity`, `fields_of_item`, `fields`, `is_done`, `ledger_entry`, `parse`, `primary_space`, `set`, `space_of`, `text`, `view`, `with`, `write_entry`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `Fields`, `Inner`
 
 /// Verfügbare Modul-Vorlagen für "Neue Liste".
@@ -98,6 +98,31 @@ abstract class Tracker implements RustOpaqueInterface {
   Future<void> restoreItems({required List<String> itemIds});
 
   Future<void> setDone({required String itemId, required bool done});
+
+  /// Bestehendes Gerät: bestätigt einen Kopplungscode, gibt den Gerätenamen zurück.
+  Future<String> syncApprovePairing({required String code});
+
+  /// Erstes Gerät: legt auf dem Server einen neuen Account an.
+  Future<void> syncCreateAccount({
+    required String server,
+    required String deviceName,
+  });
+
+  /// Trennt dieses Gerät vom Sync; lokale Daten bleiben erhalten.
+  Future<void> syncDisconnect();
+
+  /// Weiteres Gerät: `true`, sobald die Kopplung bestätigt und abgeschlossen ist.
+  Future<bool> syncFinishPairing();
+
+  Future<SyncResult> syncNow();
+
+  /// Weiteres Gerät: liefert den Kopplungscode, der auf einem bestehenden Gerät eingegeben wird.
+  Future<String> syncStartPairing({
+    required String server,
+    required String deviceName,
+  });
+
+  Future<SyncState> syncStatus();
 
   Future<void> updateEntry({
     required String entryId,
@@ -349,6 +374,67 @@ class MonthView {
           balanceMinor == other.balanceMinor &&
           categories == other.categories &&
           entries == other.entries;
+}
+
+enum SyncMode {
+  off,
+
+  /// Wartet auf Bestätigung durch ein bestehendes Gerät; `code` dort eingeben.
+  pairing,
+  connected,
+}
+
+class SyncResult {
+  final int pushed;
+  final int pulled;
+
+  /// `true`, wenn bereits ein Sync lief und dieser Aufruf nichts getan hat.
+  final bool skipped;
+
+  const SyncResult({
+    required this.pushed,
+    required this.pulled,
+    required this.skipped,
+  });
+
+  @override
+  int get hashCode => pushed.hashCode ^ pulled.hashCode ^ skipped.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncResult &&
+          runtimeType == other.runtimeType &&
+          pushed == other.pushed &&
+          pulled == other.pulled &&
+          skipped == other.skipped;
+}
+
+class SyncState {
+  final SyncMode mode;
+  final String? server;
+
+  /// Nur `Pairing`: Kopplungscode zum Eingeben auf dem bestehenden Gerät.
+  final String? code;
+
+  /// Nur `Connected`: Account-ID (hex), zur Anzeige.
+  final String? account;
+
+  const SyncState({required this.mode, this.server, this.code, this.account});
+
+  @override
+  int get hashCode =>
+      mode.hashCode ^ server.hashCode ^ code.hashCode ^ account.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SyncState &&
+          runtimeType == other.runtimeType &&
+          mode == other.mode &&
+          server == other.server &&
+          code == other.code &&
+          account == other.account;
 }
 
 class TemplateInfo {

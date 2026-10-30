@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/tracker.dart';
+import '../sync_service.dart';
 import 'collection_screen.dart';
 import 'ledger_screen.dart';
+import 'sync_screen.dart';
 import 'common.dart';
 
 /// Übersicht aller Listen.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.tracker});
+  const HomeScreen({super.key, required this.tracker, required this.sync});
 
   final Tracker tracker;
+  final SyncService sync;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,10 +23,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Tracker get _tracker => widget.tracker;
 
+  int _seenVersion = 0;
+
   @override
   void initState() {
     super.initState();
+    _seenVersion = widget.sync.dataVersion;
+    widget.sync.addListener(_onSync);
     _load();
+  }
+
+  @override
+  void dispose() {
+    widget.sync.removeListener(_onSync);
+    super.dispose();
+  }
+
+  /// Ein Sync hat neue Daten geholt.
+  void _onSync() {
+    if (widget.sync.dataVersion != _seenVersion) {
+      _seenVersion = widget.sync.dataVersion;
+      _load();
+    }
+  }
+
+  /// Nach einer lokalen Änderung: neu laden und bald synchronisieren.
+  Future<void> _changed() async {
+    widget.sync.schedule();
+    await _load();
   }
 
   Future<void> _load() async {
@@ -42,16 +69,18 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => switch (collection.view) {
           CollectionView.ledger => LedgerScreen(
             tracker: _tracker,
+            sync: widget.sync,
             collection: collection,
           ),
           CollectionView.checklist => CollectionScreen(
             tracker: _tracker,
+            sync: widget.sync,
             collection: collection,
           ),
         },
       ),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _create() async {
@@ -66,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
       () => _tracker.createCollection(name: name, templateId: template),
     );
     if (id == null) return;
-    await _load();
+    await _changed();
     final created = _collections?.where((c) => c.id == id).firstOrNull;
     if (created != null) await _open(created);
   }
@@ -81,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       () => _tracker.renameCollection(collectionId: collection.id, name: name),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _delete(CollectionInfo collection) async {
@@ -89,11 +118,11 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       () => _tracker.deleteCollection(collectionId: collection.id),
     );
-    await _load();
+    await _changed();
     if (!mounted) return;
     showUndo(context, '„${collection.name}“ gelöscht', () async {
       await _tracker.restoreCollection(collectionId: collection.id);
-      await _load();
+      await _changed();
     });
   }
 
@@ -111,7 +140,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final collections = _collections;
     return Scaffold(
-      appBar: AppBar(title: const Text('Doeverything')),
+      appBar: AppBar(
+        title: const Text('Doeverything'),
+        actions: [SyncIcon(sync: widget.sync)],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         icon: const Icon(Icons.add),

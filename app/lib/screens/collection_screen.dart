@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../src/rust/api/tracker.dart';
+import '../sync_service.dart';
 import 'common.dart';
 
 /// Einträge einer Liste: offene oben, erledigte darunter.
@@ -8,10 +9,12 @@ class CollectionScreen extends StatefulWidget {
   const CollectionScreen({
     super.key,
     required this.tracker,
+    required this.sync,
     required this.collection,
   });
 
   final Tracker tracker;
+  final SyncService sync;
   final CollectionInfo collection;
 
   @override
@@ -28,14 +31,33 @@ class _CollectionScreenState extends State<CollectionScreen> {
   String get _id => widget.collection.id;
   bool get _hasQuantity => widget.collection.template.startsWith('shopping');
 
+  int _seenVersion = 0;
+
   @override
   void initState() {
     super.initState();
+    _seenVersion = widget.sync.dataVersion;
+    widget.sync.addListener(_onSync);
     _load();
+  }
+
+  /// Ein Sync hat neue Daten geholt.
+  void _onSync() {
+    if (widget.sync.dataVersion != _seenVersion) {
+      _seenVersion = widget.sync.dataVersion;
+      _load();
+    }
+  }
+
+  /// Nach einer lokalen Änderung: neu laden und bald synchronisieren.
+  Future<void> _changed() async {
+    widget.sync.schedule();
+    await _load();
   }
 
   @override
   void dispose() {
+    widget.sync.removeListener(_onSync);
     _title.dispose();
     _quantity.dispose();
     _titleFocus.dispose();
@@ -65,7 +87,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         quantity: quantity.isEmpty ? null : quantity,
       ),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _toggle(ItemInfo item) async {
@@ -73,18 +95,18 @@ class _CollectionScreenState extends State<CollectionScreen> {
       context,
       () => _tracker.setDone(itemId: item.id, done: !item.done),
     );
-    await _load();
+    await _changed();
   }
 
   Future<void> _delete(ItemInfo item) async {
     // Sofort aus der Liste nehmen, damit Dismissible nicht auf einen Reload wartet.
     setState(() => _items = _items?.where((i) => i.id != item.id).toList());
     await guarded(context, () => _tracker.deleteItem(itemId: item.id));
-    await _load();
+    await _changed();
     if (!mounted) return;
     showUndo(context, '„${item.title}“ gelöscht', () async {
       await _tracker.restoreItems(itemIds: [item.id]);
-      await _load();
+      await _changed();
     });
   }
 
@@ -93,11 +115,11 @@ class _CollectionScreenState extends State<CollectionScreen> {
       context,
       () => _tracker.clearDone(collectionId: _id),
     );
-    await _load();
+    await _changed();
     if (!mounted || removed == null || removed.isEmpty) return;
     showUndo(context, '${removed.length} erledigte entfernt', () async {
       await _tracker.restoreItems(itemIds: removed);
-      await _load();
+      await _changed();
     });
   }
 
@@ -116,7 +138,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         quantity: quantity,
       ),
     );
-    await _load();
+    await _changed();
   }
 
   @override

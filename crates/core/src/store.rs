@@ -48,6 +48,12 @@ pub trait Store {
 
     /// IDs aller sichtbaren Spaces, aufsteigend (= nach Erstellungszeit, da `UUIDv7`).
     fn spaces(&self) -> Result<Vec<EntityId>, Self::Error>;
+
+    /// Lokale Einstellungen und Geheimnisse (Sync-Zugang, Schlüssel). Werden nie synchronisiert.
+    fn meta(&self, key: &str) -> Result<Option<Vec<u8>>, Self::Error>;
+
+    /// `None` löscht den Eintrag.
+    fn set_meta(&mut self, key: &str, value: Option<&[u8]>) -> Result<(), Self::Error>;
 }
 
 /// Referenzimplementierung im Arbeitsspeicher.
@@ -55,6 +61,7 @@ pub trait Store {
 pub struct MemoryStore {
     device: DeviceId,
     spaces: BTreeMap<EntityId, SpaceData>,
+    meta: BTreeMap<String, Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -69,6 +76,7 @@ impl MemoryStore {
         Self {
             device: DeviceId::new(),
             spaces: BTreeMap::new(),
+            meta: BTreeMap::new(),
         }
     }
 }
@@ -154,6 +162,18 @@ impl Store for MemoryStore {
             .collect();
         sort_children(&mut out);
         Ok(out)
+    }
+
+    fn meta(&self, key: &str) -> Result<Option<Vec<u8>>, Infallible> {
+        Ok(self.meta.get(key).cloned())
+    }
+
+    fn set_meta(&mut self, key: &str, value: Option<&[u8]>) -> Result<(), Infallible> {
+        match value {
+            Some(v) => self.meta.insert(key.to_owned(), v.to_vec()),
+            None => self.meta.remove(key),
+        };
+        Ok(())
     }
 
     fn spaces(&self) -> Result<Vec<EntityId>, Infallible> {

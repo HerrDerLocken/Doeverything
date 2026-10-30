@@ -33,6 +33,38 @@ Future<void> settle(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Scrollt [finder] in den sichtbaren Bereich und tippt darauf.
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+}
+
+/// Setzt den Inhalt eines Textfelds direkt. `enterText` kommt im Linux-Integrationstest beim
+/// zweiten Mal auf demselben Feld nicht an (Test-Tastatur verbindet sich nicht neu); geprüft
+/// werden soll hier die Reaktion der App auf die Eingabe, nicht das Tippen.
+Future<void> setField(WidgetTester tester, Finder field, String text) async {
+  tester.widget<TextField>(field).controller!.text = text;
+  await tester.pump();
+}
+
+/// Pumpt, bis [finder] etwas findet (für Netzwerkaufrufe mit unbekannter Dauer).
+Future<void> waitFor(WidgetTester tester, Finder finder) async {
+  for (var i = 0; i < 100 && finder.evaluate().isEmpty; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await tester.pump();
+  }
+  if (finder.evaluate().isEmpty) {
+    final texte = find
+        .byType(Text)
+        .evaluate()
+        .map((e) => (e.widget as Text).data)
+        .whereType<String>()
+        .join(' | ');
+    fail('Nicht gefunden: $finder\nAngezeigt: $texte');
+  }
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() async => await RustLib.init());
@@ -50,7 +82,7 @@ void main() {
       dbPath: '${dir.path}/test.sqlite',
       key: generateDbKey(),
     );
-    await tester.pumpWidget(appWith(tracker));
+    await tester.pumpWidget(await appWith(tracker));
     await settle(tester);
     expect(find.text('Noch keine Listen'), findsOneWidget);
 
@@ -95,7 +127,7 @@ void main() {
       dbPath: '${dir.path}/finanzen.sqlite',
       key: generateDbKey(),
     );
-    await tester.pumpWidget(appWith(tracker));
+    await tester.pumpWidget(await appWith(tracker));
     await settle(tester);
 
     await tester.tap(find.text('Neue Liste'));
@@ -196,6 +228,53 @@ void main() {
         (await nochmal.collections(today: '2026-10-30')).single.name,
         'Geheim',
       );
+    },
+  );
+
+  testWidgets(
+    'Sync-Bildschirm: Einrichtung und Fehler bei ungültiger Adresse',
+    (tester) async {
+      final tracker = await Tracker.open(
+        dbPath: '${dir.path}/sync.sqlite',
+        key: generateDbKey(),
+      );
+      await tester.pumpWidget(await appWith(tracker));
+      await settle(tester);
+
+      await tester.tap(find.byTooltip('Sync einrichten'));
+      await settle(tester);
+      expect(find.text('Neues Sync-Konto anlegen'), findsOneWidget);
+      expect(find.text('Ende-zu-Ende-verschlüsselt'), findsOneWidget);
+
+      await setField(tester, find.byKey(const Key('sync-server')), 'ftp://x');
+      await tapVisible(tester, find.text('Neues Sync-Konto anlegen'));
+      await waitFor(tester, find.textContaining('http:// oder https://'));
+
+      // Nicht erreichbarer Server: Fehlermeldung, Zustand bleibt "aus"
+      await setField(
+        tester,
+        find.byKey(const Key('sync-server')),
+        'http://127.0.0.1:9',
+      );
+      await tapVisible(tester, find.text('Neues Sync-Konto anlegen'));
+      await waitFor(tester, find.textContaining('nicht erreichbar'));
+      expect(find.text('Neues Sync-Konto anlegen'), findsOneWidget);
+
+      // Kopplung starten zeigt einen Code (ohne Server-Kontakt)
+      await setField(
+        tester,
+        find.byKey(const Key('sync-server')),
+        'https://sync.example.org',
+      );
+      await tapVisible(tester, find.text('Mit bestehendem Gerät koppeln'));
+      await waitFor(tester, find.byKey(const Key('pairing-code')));
+      final code = tester.widget<SelectableText>(
+        find.byKey(const Key('pairing-code')),
+      );
+      expect(code.data, startsWith('DOE1-'));
+      await tapVisible(tester, find.text('Abbrechen'));
+      await settle(tester);
+      expect(find.text('Neues Sync-Konto anlegen'), findsOneWidget);
     },
   );
 }
