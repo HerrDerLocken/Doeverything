@@ -317,6 +317,14 @@ class _Connected extends StatelessWidget {
                   style: const TextStyle(fontFamily: 'monospace'),
                 ),
               ),
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: const Text('Sicherheitsnummer'),
+                subtitle: Text(
+                  state.safetyNumber ?? '',
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
             ],
           ),
         ),

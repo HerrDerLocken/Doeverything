@@ -23,7 +23,8 @@ use doeverything_proto::api::{
     SessionResponse, SpacesResponse, VerifyRequest, VersionVectorResponse,
 };
 use doeverything_proto::crypto::{
-    self, CTX_AUTH, CTX_DEVICE, CryptoError, DeviceKeys, PairingCode, PairingMessage, PairingSecret,
+    self, CTX_AUTH, CTX_DEVICE, CryptoError, DeviceKeys, Identity, PairingCode, PairingMessage,
+    PairingSecret,
 };
 use doeverything_proto::{decode, encode};
 use serde::Serialize;
@@ -36,6 +37,8 @@ const META_SIGNING_KEY: &str = "sync.signing_key";
 const META_EXCHANGE_KEY: &str = "sync.exchange_key";
 const META_PAIRING: &str = "sync.pairing";
 const META_TOKEN: &str = "sync.token";
+/// Gesetzt, sobald das Gerätezertifikat auf dem Server liegt.
+const META_CERT_UPLOADED: &str = "sync.cert_uploaded";
 const META_CURSOR_PREFIX: &str = "sync.cursor.";
 
 /// Changesets pro Push-Anfrage.
@@ -103,6 +106,8 @@ pub enum SyncStatus {
     Connected {
         server: String,
         account: String,
+        /// Sicherheitsnummer der Account-Identität (`IdentityPublic::safety_number`).
+        safety_number: String,
     },
 }
 
@@ -112,6 +117,8 @@ pub struct SyncReport {
     pub pulled: u32,
     /// Changesets unbekannter oder entfernter Geräte, die verworfen wurden.
     pub rejected: u32,
+    /// Changesets von Geräten ohne Zertifikat; werden beim nächsten Durchgang erneut geprüft.
+    pub deferred: u32,
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -341,6 +348,12 @@ impl Client {
         Self::parse(&self.send("POST", path, &Self::cbor(req)?)?)
     }
 
+    /// # Errors
+    /// Netzwerk- oder Serverfehler.
+    pub fn put<Req: Serialize>(&self, path: &str, req: &Req) -> Result<()> {
+        self.send("PUT", path, &Self::cbor(req)?).map(drop)
+    }
+
     fn post_no_reply<Req: Serialize>(&self, path: &str, req: &Req) -> Result<()> {
         self.send("POST", path, &Self::cbor(req)?).map(drop)
     }
@@ -423,6 +436,9 @@ pub fn status<S: Store>(replica: &Mutex<Replica<S>>) -> Result<SyncStatus> {
     let r = lock(replica)?;
     if let Some(creds) = load_credentials(&r)? {
         return Ok(SyncStatus::Connected {
+            safety_number: Identity::from_account_key(&creds.account_key)
+                .public()
+                .safety_number(),
             server: creds.server,
             account: hex(&creds.account.0),
         });
@@ -624,6 +640,7 @@ pub fn disconnect<S: Store>(replica: &Mutex<Replica<S>>) -> Result<()> {
         META_EXCHANGE_KEY,
         META_PAIRING,
         META_TOKEN,
+        META_CERT_UPLOADED,
     ] {
         set_meta(&mut r, key, None)?;
     }
@@ -643,17 +660,58 @@ pub fn sync<S: Store>(replica: &Mutex<Replica<S>>) -> Result<SyncReport> {
     with_session(replica, &creds, |client| sync_with(replica, &creds, client))
 }
 
+/// Hinterlegt das Zertifikat dieses Geräts auf dem Server, falls noch nicht geschehen. Jedes Gerät
+/// kennt den Account-Schlüssel und stellt sein Zertifikat daher selbst aus.
+fn ensure_cert<S: Store>(
+    replica: &Mutex<Replica<S>>,
+    creds: &Credentials,
+    client: &Client,
+) -> Result<()> {
+    if meta(&*lock(replica)?, META_CERT_UPLOADED)?.is_some() {
+        return Ok(());
+    }
+    let identity = Identity::from_account_key(&creds.account_key);
+    let cert = crypto::issue_cert(&identity, creds.account, creds.device, &creds.keys, now_s());
+    client.put(&format!("/v1/devices/{}/cert", creds.device), &cert)?;
+    set_meta(&mut *lock(replica)?, META_CERT_UPLOADED, Some(&[1]))
+}
+
+/// Wie mit einem Gerät umgegangen wird, dessen Changesets ankommen.
+enum Signer {
+    /// Zertifikat gültig: Changesets mit diesem Schlüssel prüfen.
+    Trusted([u8; 32]),
+    /// Vom Server gelistet, aber (noch) ohne Zertifikat, z. B. ein Gerät mit älterer App-Version.
+    Pending,
+}
+
+/// Vertrauenswürdig sind nur Geräte mit einem Zertifikat der eigenen Account-Identität. Die
+/// Geräteliste des Servers allein reicht nicht: Er könnte sonst ein fremdes Gerät unterschieben.
+fn signers(creds: &Credentials, devices: &DevicesResponse) -> BTreeMap<DeviceId, Signer> {
+    let identity = Identity::from_account_key(&creds.account_key).public();
+    let mut out: BTreeMap<DeviceId, Signer> = devices
+        .devices
+        .iter()
+        .map(|d| (d.device, Signer::Pending))
+        .collect();
+    for cert in &devices.certs {
+        let valid = cert.account == creds.account
+            && out.contains_key(&cert.device)
+            && crypto::verify_cert(cert, &identity).is_ok();
+        if valid {
+            out.insert(cert.device, Signer::Trusted(cert.signing_pub));
+        }
+    }
+    out
+}
+
 fn sync_with<S: Store>(
     replica: &Mutex<Replica<S>>,
     creds: &Credentials,
     client: &Client,
 ) -> Result<SyncReport> {
+    ensure_cert(replica, creds, client)?;
     let devices: DevicesResponse = client.get("/v1/devices")?;
-    let signers: BTreeMap<DeviceId, [u8; 32]> = devices
-        .devices
-        .iter()
-        .map(|d| (d.device, d.signing_pub))
-        .collect();
+    let signers = signers(creds, &devices);
     let remote: SpacesResponse = client.get("/v1/spaces")?;
     let local = lock(replica)?.store().spaces().map_err(store_err)?;
     let spaces: BTreeSet<EntityId> = remote.spaces.into_iter().chain(local).collect();
@@ -670,7 +728,7 @@ fn pull_space<S: Store>(
     replica: &Mutex<Replica<S>>,
     creds: &Credentials,
     client: &Client,
-    signers: &BTreeMap<DeviceId, [u8; 32]>,
+    signers: &BTreeMap<DeviceId, Signer>,
     space: EntityId,
     report: &mut SyncReport,
 ) -> Result<()> {
@@ -678,16 +736,28 @@ fn pull_space<S: Store>(
     let mut cursor = meta(&*lock(replica)?, &cursor_key)?
         .and_then(|c| c.try_into().ok())
         .map_or(0, u64::from_be_bytes);
+    // Gespeichert wird höchstens bis vor das erste zurückgestellte Changeset, damit es beim
+    // nächsten Durchgang erneut geholt wird. Bereits angewendete kommen dann als Duplikat.
+    let mut deferred_from: Option<u64> = None;
     loop {
         let page: PullResponse = client.get(&format!("/v1/spaces/{space}/pull?after={cursor}"))?;
         let mut r = lock(replica)?;
         for item in &page.items {
             let env = &item.envelope;
             if env.header.device != creds.device {
-                let Some(signer) = signers.get(&env.header.device) else {
-                    report.rejected += 1;
-                    cursor = item.server_seq;
-                    continue;
+                let signer = match signers.get(&env.header.device) {
+                    Some(Signer::Trusted(key)) => key,
+                    Some(Signer::Pending) => {
+                        report.deferred += 1;
+                        deferred_from.get_or_insert(item.server_seq);
+                        cursor = item.server_seq;
+                        continue;
+                    }
+                    None => {
+                        report.rejected += 1;
+                        cursor = item.server_seq;
+                        continue;
+                    }
                 };
                 let key = crypto::space_key(&creds.account_key, space, env.header.key_epoch);
                 let cs = crypto::open_envelope(env, &key, signer)?;
@@ -704,7 +774,8 @@ fn pull_space<S: Store>(
             }
             cursor = item.server_seq;
         }
-        set_meta(&mut r, &cursor_key, Some(&cursor.to_be_bytes()))?;
+        let saved = deferred_from.map_or(cursor, |d| d - 1);
+        set_meta(&mut r, &cursor_key, Some(&saved.to_be_bytes()))?;
         if !page.more {
             return Ok(());
         }

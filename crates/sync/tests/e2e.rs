@@ -4,7 +4,11 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use doeverything_core::templates::{self, Role, field_with_role};
-use doeverything_core::{EntityId, Kind, MemoryStore, Replica, Store, SysField, Value};
+use doeverything_core::{
+    EntityId, Kind, MemoryStore, Replica, Store, SysField, Value, VersionVector,
+};
+use doeverything_proto::api::{AccountId, DeviceInfo, PushRequest, PushResponse, RegisterDevice};
+use doeverything_proto::crypto::{self, DeviceKeys, Identity};
 use doeverything_server::{AppState, serve};
 use doeverything_sync::{self as sync, Client, SyncError, SyncStatus};
 
@@ -230,24 +234,159 @@ fn fremder_account_sieht_nichts() {
     );
 }
 
+fn meta32(d: &Device, key: &str) -> [u8; 32] {
+    d.lock()
+        .unwrap()
+        .store()
+        .meta(key)
+        .unwrap()
+        .unwrap()
+        .try_into()
+        .unwrap()
+}
+
 /// Liest die Geräteschlüssel aus dem Speicher (nur im Test).
-fn mallory_keys(d: &Device) -> doeverything_proto::crypto::DeviceKeys {
-    let r = d.lock().unwrap();
-    let s: [u8; 32] = r
-        .store()
-        .meta("sync.signing_key")
+fn mallory_keys(d: &Device) -> DeviceKeys {
+    DeviceKeys::from_bytes(
+        meta32(d, "sync.signing_key"),
+        meta32(d, "sync.exchange_key"),
+    )
+}
+
+fn account_id(d: &Device) -> AccountId {
+    AccountId(
+        d.lock()
+            .unwrap()
+            .store()
+            .meta("sync.account")
+            .unwrap()
+            .unwrap()
+            .try_into()
+            .unwrap(),
+    )
+}
+
+/// Ein manipulierter Server trägt ein Gerät in die Geräteliste ein, das niemand gekoppelt hat.
+/// Selbst wenn es den Space-Schlüssel kennte: Ohne Zertifikat der Account-Identität werden
+/// seine Changesets nicht übernommen, sondern zurückgestellt.
+#[test]
+fn untergeschobenes_geraet_ohne_zertifikat() {
+    let server = server();
+    let handy = device();
+    let laptop = device();
+    let (space, liste, titel) = einkaufsliste(&handy);
+    artikel(&handy, space, liste, titel, "Milch");
+    sync::create_account(&handy, &server, "Handy").unwrap();
+    sync::sync(&handy).unwrap();
+    koppeln(&server, &handy, &laptop);
+
+    // Das Gerät wird über die API eingetragen, so wie es der Server auch selbst könnte
+    let fremd = device();
+    let fremd_keys = DeviceKeys::generate();
+    let fremd_info = DeviceInfo {
+        device: fremd.lock().unwrap().device(),
+        signing_pub: fremd_keys.signing_public(),
+        name: "Unbekannt".into(),
+    };
+    let handy_keys = mallory_keys(&handy);
+    let handy_device = handy.lock().unwrap().device();
+    let mut handy_client = Client::new(&server);
+    handy_client.login(handy_device, &handy_keys).unwrap();
+    handy_client
+        .post::<_, ()>(
+            "/v1/devices",
+            &RegisterDevice {
+                proof: crypto::device_proof(&fremd_keys, &fremd_info),
+                device: fremd_info.clone(),
+            },
+        )
+        .ok();
+
+    // Schlimmster Fall: Es kennt sogar den Space-Schlüssel
+    let ark = meta32(&handy, "sync.account_key");
+    artikel(&fremd, space, liste, titel, "Untergeschoben");
+    let cs = fremd
+        .lock()
         .unwrap()
-        .unwrap()
-        .try_into()
+        .changesets_missing_from(space, &VersionVector::default())
         .unwrap();
-    let x: [u8; 32] = r
-        .store()
-        .meta("sync.exchange_key")
-        .unwrap()
-        .unwrap()
-        .try_into()
+    let envelopes = cs
+        .iter()
+        .map(|cs| {
+            crypto::seal_changeset(
+                cs,
+                &crypto::space_key(&ark, space, 0),
+                0,
+                &fremd_keys.signing,
+            )
+            .unwrap()
+        })
+        .collect();
+    let mut fremd_client = Client::new(&server);
+    fremd_client.login(fremd_info.device, &fremd_keys).unwrap();
+    fremd_client
+        .post::<_, PushResponse>(
+            &format!("/v1/spaces/{space}/push"),
+            &PushRequest { envelopes },
+        )
         .unwrap();
-    doeverything_proto::crypto::DeviceKeys::from_bytes(s, x)
+
+    let bericht = sync::sync(&laptop).unwrap();
+    assert_eq!((bericht.pulled, bericht.deferred), (3, 1));
+    assert_eq!(titel_der_artikel(&laptop, liste, titel), ["Milch"]);
+
+    // Zertifikat einer fremden Identität hilft nicht
+    let falsch = crypto::issue_cert(
+        &Identity::from_account_key(&crypto::random()),
+        account_id(&handy),
+        fremd_info.device,
+        &fremd_keys,
+        0,
+    );
+    fremd_client
+        .put(&format!("/v1/devices/{}/cert", fremd_info.device), &falsch)
+        .unwrap();
+    let bericht = sync::sync(&laptop).unwrap();
+    assert_eq!(
+        (bericht.pulled, bericht.deferred),
+        (0, 1),
+        "erneut geprüft, weiter zurückgestellt"
+    );
+    assert_eq!(titel_der_artikel(&laptop, liste, titel), ["Milch"]);
+
+    // Mit gültigem Zertifikat (nur mit dem Account-Schlüssel möglich) wird es übernommen
+    let echt = crypto::issue_cert(
+        &Identity::from_account_key(&ark),
+        account_id(&handy),
+        fremd_info.device,
+        &fremd_keys,
+        0,
+    );
+    fremd_client
+        .put(&format!("/v1/devices/{}/cert", fremd_info.device), &echt)
+        .unwrap();
+    let bericht = sync::sync(&laptop).unwrap();
+    assert_eq!((bericht.pulled, bericht.deferred), (1, 0));
+    assert_eq!(
+        titel_der_artikel(&laptop, liste, titel),
+        ["Milch", "Untergeschoben"]
+    );
+    assert_eq!(sync::sync(&laptop).unwrap(), sync::SyncReport::default());
+}
+
+#[test]
+fn sicherheitsnummer_gleich_auf_allen_geraeten() {
+    let server = server();
+    let (handy, laptop, fremd) = (device(), device(), device());
+    sync::create_account(&handy, &server, "Handy").unwrap();
+    koppeln(&server, &handy, &laptop);
+    sync::create_account(&fremd, &server, "Fremd").unwrap();
+    let nummer = |d: &Device| match sync::status(d).unwrap() {
+        SyncStatus::Connected { safety_number, .. } => safety_number,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(nummer(&handy), nummer(&laptop));
+    assert_ne!(nummer(&handy), nummer(&fremd));
 }
 
 #[test]
@@ -336,7 +475,8 @@ fn viele_aenderungen_in_mehreren_seiten() {
 #[test]
 #[ignore = "braucht laufenden Server in DOEVERYTHING_TEST_SERVER"]
 fn gegen_externen_server() {
-    let server = std::env::var("DOEVERYTHING_TEST_SERVER").expect("DOEVERYTHING_TEST_SERVER setzen");
+    let server =
+        std::env::var("DOEVERYTHING_TEST_SERVER").expect("DOEVERYTHING_TEST_SERVER setzen");
     let handy = device();
     let laptop = device();
     let (space, liste, titel) = einkaufsliste(&handy);

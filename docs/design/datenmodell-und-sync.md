@@ -357,9 +357,9 @@ Umgesetzt in `crates/proto/src/crypto.rs`, `crates/server`, `crates/sync`. Abwei
 - **Space-Schlüssel** werden per HKDF aus dem Account Root Key abgeleitet
   (`space_key(ARK, space, epoch)`), statt zufällig erzeugt und gewrappt. Einfacher; Folge: Ein
   entferntes Gerät kennt den ARK, echte Rotation braucht daher einen neuen ARK.
-- **Geräteliste** liegt vorerst auf dem Server (`/v1/devices`), nicht als E2E-synchronisierte
-  Collection. Der Server könnte ein fremdes Gerät eintragen, dessen Pakete aber nicht
-  entschlüsselt werden können (AEAD mit Space-Schlüssel), und es bekäme den ARK nicht.
+- **Geräteliste** liegt auf dem Server (`/v1/devices`), nicht als E2E-synchronisierte
+  Collection. Seit v0.4 entscheidet aber nicht die Liste, sondern das Gerätezertifikat (8.2),
+  ob einem Gerät vertraut wird. Ein vom Server eingetragenes Gerät ohne Zertifikat wird ignoriert.
 - **Kopplung** per Text-Code (`DOE1-…`) statt QR, sonst wie 5.4: Code enthält nur öffentliche
   Schlüssel und ein Einmal-Geheimnis. Das bestehende Gerät registriert das neue und legt den ARK
   verschlüsselt (X25519 + HKDF mit Einmal-Geheimnis) ins Server-Postfach. QR folgt.
@@ -543,9 +543,17 @@ struct DeviceCert {
 - Nebeneffekt: Auch für den eigenen Account ersetzt das die Server-Geräteliste als
   Vertrauensquelle (schließt die Lücke aus 5.5).
 
-**Sicherheitsnummer** = die ersten 40 Bit von `SHA-256("doe identity" || identity_sign_pub ||
-identity_exchange_pub)` als 12 Dezimalziffern in Dreiergruppen. Wird in der Mitgliederliste
-angezeigt und kann bei Bedarf persönlich verglichen werden.
+**Sicherheitsnummer** = erste 8 Byte von `SHA-256("doe identity" || identity_sign_pub ||
+identity_exchange_pub)` als Zahl modulo 10¹², also 12 Dezimalziffern (≈ 40 Bit) in Dreiergruppen.
+Wird in der Mitgliederliste angezeigt und kann bei Bedarf persönlich verglichen werden.
+
+**Umsetzungsstand (v0.4):** Identität, Zertifikate und Sicherheitsnummer sind umgesetzt
+(`crates/proto/src/crypto.rs`). Jedes Gerät stellt sein Zertifikat beim ersten Sync selbst aus und
+legt es per `PUT /v1/devices/{id}/cert` ab; der Server prüft nur, dass Gerät, Account und
+Geräteschlüssel zusammenpassen. Changesets werden nur von Geräten mit gültigem Zertifikat
+übernommen. Gelistete Geräte ohne (gültiges) Zertifikat, etwa mit älterer App-Version, werden
+**zurückgestellt**: Der Pull-Cursor bleibt vor ihrem ersten Changeset stehen, sodass es beim
+nächsten Durchgang erneut geprüft wird. Die Sicherheitsnummer steht in der App unter Sync.
 
 ### 8.3 Space-Schlüssel geteilter Spaces
 

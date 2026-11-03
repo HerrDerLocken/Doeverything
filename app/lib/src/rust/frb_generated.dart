@@ -1610,13 +1610,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SyncState dco_decode_sync_state(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return SyncState(
       mode: dco_decode_sync_mode(arr[0]),
       server: dco_decode_opt_String(arr[1]),
       code: dco_decode_opt_String(arr[2]),
       account: dco_decode_opt_String(arr[3]),
+      safetyNumber: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -2016,11 +2017,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_server = sse_decode_opt_String(deserializer);
     var var_code = sse_decode_opt_String(deserializer);
     var var_account = sse_decode_opt_String(deserializer);
+    var var_safetyNumber = sse_decode_opt_String(deserializer);
     return SyncState(
       mode: var_mode,
       server: var_server,
       code: var_code,
       account: var_account,
+      safetyNumber: var_safetyNumber,
     );
   }
 
@@ -2380,6 +2383,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.server, serializer);
     sse_encode_opt_String(self.code, serializer);
     sse_encode_opt_String(self.account, serializer);
+    sse_encode_opt_String(self.safetyNumber, serializer);
   }
 
   @protected

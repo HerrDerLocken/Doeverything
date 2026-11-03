@@ -8,14 +8,14 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{XChaCha20Poly1305, XNonce};
-use doeverything_core::{Changeset, ChangesetId, EntityId, Op};
+use doeverything_core::{Changeset, ChangesetId, DeviceId, EntityId, Op};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use hkdf::Hkdf;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use x25519_dalek::{PublicKey, StaticSecret};
 
-use crate::api::{AccountId, DeviceInfo};
+use crate::api::{AccountId, DeviceCert, DeviceInfo};
 use crate::{Envelope, EnvelopeHeader, PROTOCOL_VERSION, decode, encode};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +71,111 @@ pub fn space_key(account_key: &[u8; 32], space: EntityId, epoch: u32) -> [u8; 32
     )
 }
 
+/// Identität eines Accounts gegenüber anderen Accounts (Abschnitt 8.2 der Design-Doku).
+/// Wird aus dem Account Root Key abgeleitet, jedes eigene Gerät kennt sie also automatisch.
+pub struct Identity {
+    pub signing: SigningKey,
+    pub exchange: StaticSecret,
+}
+
+/// Öffentlicher Teil einer [`Identity`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct IdentityPublic {
+    #[serde(with = "serde_bytes")]
+    pub signing_pub: [u8; 32],
+    #[serde(with = "serde_bytes")]
+    pub exchange_pub: [u8; 32],
+}
+
+impl Identity {
+    pub fn from_account_key(account_key: &[u8; 32]) -> Self {
+        Self {
+            signing: SigningKey::from_bytes(&hkdf32(
+                account_key,
+                None,
+                &[b"doeverything account identity sign v1"],
+            )),
+            exchange: StaticSecret::from(hkdf32(
+                account_key,
+                None,
+                &[b"doeverything account identity exchange v1"],
+            )),
+        }
+    }
+
+    pub fn public(&self) -> IdentityPublic {
+        IdentityPublic {
+            signing_pub: self.signing.verifying_key().to_bytes(),
+            exchange_pub: PublicKey::from(&self.exchange).to_bytes(),
+        }
+    }
+}
+
+impl IdentityPublic {
+    /// Kurzform zum Vergleichen, z. B. `"123 456 789 012"`. 12 Ziffern, rund 40 Bit.
+    pub fn safety_number(&self) -> String {
+        let hash = Sha256::new()
+            .chain_update(b"doe identity")
+            .chain_update(self.signing_pub)
+            .chain_update(self.exchange_pub)
+            .finalize();
+        let first = hash
+            .iter()
+            .take(8)
+            .fold(0u64, |acc, b| (acc << 8) | u64::from(*b));
+        let digits: Vec<char> = format!("{:012}", first % 1_000_000_000_000)
+            .chars()
+            .collect();
+        digits
+            .chunks(3)
+            .map(|c| c.iter().collect::<String>())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+}
+
+fn cert_message(cert: &DeviceCert) -> Vec<u8> {
+    [
+        &cert.account.0[..],
+        &cert.device.0,
+        &cert.signing_pub,
+        &cert.exchange_pub,
+        &cert.issued_at.to_be_bytes(),
+    ]
+    .concat()
+}
+
+/// Bestätigt mit der Account-Identität, dass ein Gerät zum Account gehört.
+pub fn issue_cert(
+    identity: &Identity,
+    account: AccountId,
+    device: DeviceId,
+    keys: &DeviceKeys,
+    issued_at: u64,
+) -> DeviceCert {
+    let mut cert = DeviceCert {
+        account,
+        device,
+        signing_pub: keys.signing_public(),
+        exchange_pub: keys.exchange_public(),
+        issued_at,
+        signature: [0; 64],
+    };
+    cert.signature = sign(&identity.signing, CTX_CERT, &cert_message(&cert));
+    cert
+}
+
+/// # Errors
+/// [`CryptoError::BadSignature`], wenn das Zertifikat nicht von `identity` stammt oder verändert wurde.
+pub fn verify_cert(cert: &DeviceCert, identity: &IdentityPublic) -> Result<(), CryptoError> {
+    verify(
+        &identity.signing_pub,
+        CTX_CERT,
+        &cert_message(cert),
+        &cert.signature,
+    )
+}
+
 /// Schlüssel eines Geräts. Liegen in der verschlüsselten lokalen Datenbank.
 pub struct DeviceKeys {
     pub signing: SigningKey,
@@ -122,6 +227,7 @@ pub fn verify(
 pub const CTX_ENVELOPE: &[u8] = b"doeverything envelope v1";
 pub const CTX_AUTH: &[u8] = b"doeverything auth v1";
 pub const CTX_DEVICE: &[u8] = b"doeverything device v1";
+pub const CTX_CERT: &[u8] = b"doeverything device cert v1";
 
 /// Beweis, dass ein Gerät den privaten Schlüssel zu seinem öffentlichen besitzt.
 pub fn device_proof(keys: &DeviceKeys, device: &DeviceInfo) -> [u8; 64] {
@@ -376,7 +482,7 @@ pub fn open_pairing(
 
 #[cfg(test)]
 mod tests {
-    use doeverything_core::{DeviceId, MemoryStore, Replica, Store, SysField, VersionVector};
+    use doeverything_core::{MemoryStore, Replica, Store, SysField, VersionVector};
 
     use super::*;
 
@@ -532,5 +638,58 @@ mod tests {
 
         assert!(PairingCode::from_text("hallo").is_err());
         assert!(PairingCode::from_text("DOE1-!!!").is_err());
+    }
+
+    #[test]
+    fn identitaet_aus_account_schluessel() {
+        let ark = random::<32>();
+        let a = Identity::from_account_key(&ark).public();
+        assert_eq!(
+            a,
+            Identity::from_account_key(&ark).public(),
+            "deterministisch"
+        );
+        let b = Identity::from_account_key(&random()).public();
+        assert_ne!(a, b);
+        assert_ne!(a.signing_pub, a.exchange_pub);
+
+        let nummer = a.safety_number();
+        assert_eq!(nummer.len(), 15);
+        assert!(
+            nummer
+                .split(' ')
+                .all(|g| g.len() == 3 && g.bytes().all(|c| c.is_ascii_digit()))
+        );
+        assert_eq!(nummer, a.safety_number());
+        assert_ne!(nummer, b.safety_number());
+    }
+
+    #[test]
+    fn geraetezertifikat() {
+        let ark = random::<32>();
+        let identity = Identity::from_account_key(&ark);
+        let keys = DeviceKeys::generate();
+        let account = AccountId(random());
+        let cert = issue_cert(&identity, account, DeviceId::new(), &keys, 1_700_000_000);
+        assert_eq!(cert.signing_pub, keys.signing_public());
+        verify_cert(&cert, &identity.public()).unwrap();
+
+        let fremd = Identity::from_account_key(&random()).public();
+        assert_eq!(verify_cert(&cert, &fremd), Err(CryptoError::BadSignature));
+
+        let mut anderer_schluessel = cert.clone();
+        anderer_schluessel.signing_pub = DeviceKeys::generate().signing_public();
+        let mut anderes_geraet = cert.clone();
+        anderes_geraet.device = DeviceId::new();
+        let mut anderer_account = cert.clone();
+        anderer_account.account = AccountId(random());
+        for falsch in [anderer_schluessel, anderes_geraet, anderer_account] {
+            assert_eq!(
+                verify_cert(&falsch, &identity.public()),
+                Err(CryptoError::BadSignature)
+            );
+        }
+        let rund: DeviceCert = decode(&encode(&cert).unwrap()).unwrap();
+        assert_eq!(rund, cert);
     }
 }

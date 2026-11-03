@@ -420,11 +420,24 @@ class SyncState {
   /// Nur `Connected`: Account-ID (hex), zur Anzeige.
   final String? account;
 
-  const SyncState({required this.mode, this.server, this.code, this.account});
+  /// Nur `Connected`: Sicherheitsnummer des Kontos, auf allen eigenen Geräten gleich.
+  final String? safetyNumber;
+
+  const SyncState({
+    required this.mode,
+    this.server,
+    this.code,
+    this.account,
+    this.safetyNumber,
+  });
 
   @override
   int get hashCode =>
-      mode.hashCode ^ server.hashCode ^ code.hashCode ^ account.hashCode;
+      mode.hashCode ^
+      server.hashCode ^
+      code.hashCode ^
+      account.hashCode ^
+      safetyNumber.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -434,7 +447,8 @@ class SyncState {
           mode == other.mode &&
           server == other.server &&
           code == other.code &&
-          account == other.account;
+          account == other.account &&
+          safetyNumber == other.safetyNumber;
 }
 
 class TemplateInfo {

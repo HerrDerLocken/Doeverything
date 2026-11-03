@@ -161,6 +161,8 @@ pub struct SyncState {
     pub code: Option<String>,
     /// Nur `Connected`: Account-ID (hex), zur Anzeige.
     pub account: Option<String>,
+    /// Nur `Connected`: Sicherheitsnummer des Kontos, auf allen eigenen Geräten gleich.
+    pub safety_number: Option<String>,
 }
 
 pub struct SyncResult {
@@ -274,6 +276,7 @@ impl Tracker {
             server: None,
             code: None,
             account: None,
+            safety_number: None,
         };
         Ok(match doeverything_sync::status(&self.replica)? {
             SyncStatus::Off => off,
@@ -283,10 +286,15 @@ impl Tracker {
                 code: Some(code),
                 ..off
             },
-            SyncStatus::Connected { server, account } => SyncState {
+            SyncStatus::Connected {
+                server,
+                account,
+                safety_number,
+            } => SyncState {
                 mode: SyncMode::Connected,
                 server: Some(server),
                 account: Some(account),
+                safety_number: Some(safety_number),
                 ..off
             },
         })

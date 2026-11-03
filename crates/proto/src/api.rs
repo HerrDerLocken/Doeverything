@@ -32,6 +32,22 @@ pub struct DeviceInfo {
     pub name: String,
 }
 
+/// Bestätigung "Gerät gehört zu Account", signiert mit der Account-Identität
+/// (`crypto::issue_cert`). Der Server speichert sie, kann aber keine gültigen erzeugen.
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct DeviceCert {
+    pub account: AccountId,
+    pub device: DeviceId,
+    #[serde(with = "serde_bytes")]
+    pub signing_pub: [u8; 32],
+    #[serde(with = "serde_bytes")]
+    pub exchange_pub: [u8; 32],
+    /// Unix-Sekunden
+    pub issued_at: u64,
+    #[serde(with = "serde_bytes")]
+    pub signature: [u8; 64],
+}
+
 /// `POST /v1/account` – legt einen Account mit dem ersten Gerät an.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct CreateAccount {
@@ -84,6 +100,9 @@ pub struct SessionResponse {
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct DevicesResponse {
     pub devices: Vec<DeviceInfo>,
+    /// Zertifikate der Geräte, soweit hinterlegt (`PUT /v1/devices/{id}/cert`).
+    #[serde(default)]
+    pub certs: Vec<DeviceCert>,
 }
 
 /// `GET /v1/spaces`

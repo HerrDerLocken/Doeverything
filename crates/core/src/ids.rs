@@ -56,6 +56,20 @@ impl Default for DeviceId {
     }
 }
 
+impl fmt::Display for DeviceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Uuid::from_bytes(self.0).fmt(f)
+    }
+}
+
+impl std::str::FromStr for DeviceId {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(*Uuid::parse_str(s)?.as_bytes()))
+    }
+}
+
 impl fmt::Debug for DeviceId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "DeviceId({})", Uuid::from_bytes(self.0))

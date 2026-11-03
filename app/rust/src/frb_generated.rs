@@ -1935,11 +1935,13 @@ impl SseDecode for crate::api::tracker::SyncState {
         let mut var_server = <Option<String>>::sse_decode(deserializer);
         let mut var_code = <Option<String>>::sse_decode(deserializer);
         let mut var_account = <Option<String>>::sse_decode(deserializer);
+        let mut var_safetyNumber = <Option<String>>::sse_decode(deserializer);
         return crate::api::tracker::SyncState {
             mode: var_mode,
             server: var_server,
             code: var_code,
             account: var_account,
+            safety_number: var_safetyNumber,
         };
     }
 }
@@ -2363,6 +2365,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::tracker::SyncState {
             self.server.into_into_dart().into_dart(),
             self.code.into_into_dart().into_dart(),
             self.account.into_into_dart().into_dart(),
+            self.safety_number.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2701,6 +2704,7 @@ impl SseEncode for crate::api::tracker::SyncState {
         <Option<String>>::sse_encode(self.server, serializer);
         <Option<String>>::sse_encode(self.code, serializer);
         <Option<String>>::sse_encode(self.account, serializer);
+        <Option<String>>::sse_encode(self.safety_number, serializer);
     }
 }
 

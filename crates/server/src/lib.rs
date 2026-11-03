@@ -18,9 +18,10 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use doeverything_core::{DeviceId, EntityId};
 use doeverything_proto::api::{
-    AccountId, CONTENT_TYPE, ChallengeRequest, ChallengeResponse, CreateAccount, DeviceInfo,
-    DevicesResponse, ErrorBody, PullResponse, PulledEnvelope, PushRequest, PushResponse,
-    RegisterDevice, SessionResponse, SpacesResponse, VerifyRequest, VersionVectorResponse,
+    AccountId, CONTENT_TYPE, ChallengeRequest, ChallengeResponse, CreateAccount, DeviceCert,
+    DeviceInfo, DevicesResponse, ErrorBody, PullResponse, PulledEnvelope, PushRequest,
+    PushResponse, RegisterDevice, SessionResponse, SpacesResponse, VerifyRequest,
+    VersionVectorResponse,
 };
 use doeverything_proto::crypto::{self, CTX_AUTH, CTX_DEVICE};
 use doeverything_proto::{Envelope, decode, encode};
@@ -28,7 +29,7 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const SCHEMA_V1: &str = "
 CREATE TABLE accounts (
   id         BLOB PRIMARY KEY,
@@ -76,6 +77,11 @@ CREATE TABLE pairing (
 ) STRICT;
 ";
 
+/// Gerätezertifikate (Abschnitt 8.2 der Design-Doku). CBOR-kodiertes `DeviceCert`.
+const SCHEMA_V2: &str = "
+ALTER TABLE devices ADD COLUMN cert BLOB;
+";
+
 const CHALLENGE_TTL_S: i64 = 120;
 const SESSION_TTL_S: i64 = 24 * 60 * 60;
 const PAIRING_TTL_S: i64 = 10 * 60;
@@ -112,6 +118,9 @@ impl AppState {
         if version < 1 {
             tx.execute_batch(SCHEMA_V1)?;
         }
+        if version < 2 {
+            tx.execute_batch(SCHEMA_V2)?;
+        }
         tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
         tx.commit()?;
         Ok(Self {
@@ -144,6 +153,7 @@ pub fn app(state: AppState) -> Router {
         .route("/v1/auth/challenge", post(challenge))
         .route("/v1/auth/verify", post(verify))
         .route("/v1/devices", get(list_devices).post(register_device))
+        .route("/v1/devices/{device}/cert", put(put_cert))
         .route("/v1/spaces", get(list_spaces))
         .route("/v1/spaces/{space}/vv", get(version_vector))
         .route("/v1/spaces/{space}/push", post(push))
@@ -221,6 +231,11 @@ fn blob16(bytes: &[u8]) -> Result<[u8; 16], ApiError> {
 fn parse_space(s: &str) -> Result<EntityId, ApiError> {
     s.parse()
         .map_err(|_| ApiError::BadRequest("ungültige Space-ID".into()))
+}
+
+fn parse_device(s: &str) -> Result<DeviceId, ApiError> {
+    s.parse()
+        .map_err(|_| ApiError::BadRequest("ungültige Geräte-ID".into()))
 }
 
 fn parse_pairing_id(s: &str) -> Result<[u8; 16], ApiError> {
@@ -434,10 +449,10 @@ async fn list_devices(
     state
         .db(move |conn| {
             let mut stmt = conn.prepare(
-                "SELECT id, signing_pub, name FROM devices WHERE account_id = ?1 AND revoked = 0 ORDER BY created_at",
+                "SELECT id, signing_pub, name, cert FROM devices WHERE account_id = ?1 AND revoked = 0 ORDER BY created_at",
             )?;
             let mut rows = stmt.query(params![&auth.account.0[..]])?;
-            let mut devices = Vec::new();
+            let (mut devices, mut certs) = (Vec::new(), Vec::new());
             while let Some(row) = rows.next()? {
                 devices.push(DeviceInfo {
                     device: DeviceId(blob16(&row.get::<_, Vec<u8>>(0)?)?),
@@ -447,8 +462,53 @@ async fn list_devices(
                         .map_err(|_| ApiError::Internal("Schlüssellänge".into()))?,
                     name: row.get(2)?,
                 });
+                if let Some(cert) = row.get::<_, Option<Vec<u8>>>(3)? {
+                    certs.push(decode(&cert).map_err(|e| ApiError::Internal(e.to_string()))?);
+                }
             }
-            Ok(ok(&DevicesResponse { devices }))
+            Ok(ok(&DevicesResponse { devices, certs }))
+        })
+        .await
+}
+
+/// Hinterlegt das Zertifikat eines Geräts des eigenen Accounts. Die Signatur kann der Server nicht
+/// prüfen (er kennt die Account-Identität nicht), nur dass die Angaben zum Gerät passen. Ob ein
+/// Zertifikat gültig ist, entscheiden die Clients.
+async fn put_cert(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    UrlPath(device): UrlPath<String>,
+    bytes: Bytes,
+) -> Result<Response, ApiError> {
+    let auth = authenticate(&state, &headers).await?;
+    let device = parse_device(&device)?;
+    let cert: DeviceCert = body(&bytes)?;
+    if cert.device != device || cert.account != auth.account {
+        return Err(ApiError::BadRequest(
+            "Zertifikat passt nicht zu Gerät oder Account".into(),
+        ));
+    }
+    state
+        .db(move |conn| {
+            let signing_pub: Option<Vec<u8>> = conn
+                .query_row(
+                    "SELECT signing_pub FROM devices WHERE id = ?1 AND account_id = ?2 AND revoked = 0",
+                    params![&device.0[..], &auth.account.0[..]],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            let signing_pub = signing_pub.ok_or(ApiError::NotFound)?;
+            if signing_pub != cert.signing_pub {
+                return Err(ApiError::BadRequest(
+                    "Zertifikat nennt einen anderen Geräteschlüssel".into(),
+                ));
+            }
+            let blob = encode(&cert).map_err(|e| ApiError::Internal(e.to_string()))?;
+            conn.execute(
+                "UPDATE devices SET cert = ?1 WHERE id = ?2",
+                params![blob, &device.0[..]],
+            )?;
+            Ok(StatusCode::NO_CONTENT.into_response())
         })
         .await
 }
@@ -713,4 +773,37 @@ pub async fn serve(
     axum::serve(listener, app(state))
         .with_graceful_shutdown(shutdown)
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn migration_von_v1() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_V1).unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        conn.execute(
+            "INSERT INTO devices (id, account_id, signing_pub, name, created_at) VALUES (x'01', x'02', x'03', 'Alt', 0)",
+            [],
+        )
+        .unwrap();
+
+        let state = AppState::from_connection(conn, true).unwrap();
+        let conn = state.db.lock().unwrap();
+        let version: i64 = conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, SCHEMA_VERSION);
+        let cert: Option<Vec<u8>> = conn
+            .query_row("SELECT cert FROM devices WHERE name = 'Alt'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            cert, None,
+            "bestehende Geräte bleiben, noch ohne Zertifikat"
+        );
+    }
 }
