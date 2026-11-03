@@ -1,6 +1,6 @@
 # Datenmodell & Sync-Protokoll
 
-Status: Entwurf v0.3 · 2026-10-30
+Status: Entwurf v0.4 · 2026-11-03
 
 Dieses Dokument legt fest, wie Daten lokal strukturiert sind, wie Änderungen
 zwischen Geräten ausgetauscht werden (Server und LAN) und wie sie verschlüsselt
@@ -53,8 +53,8 @@ Account
 ```
 
 - Ein **Space** hat einen eigenen Schlüssel. Standard: ein Space "Privat".
-  Später kann man z. B. einen Space "Familie" mit anderen Accounts teilen,
-  ohne den privaten Space offenzulegen.
+  Ein Space "Familie" kann mit anderen Accounts geteilt werden, ohne den
+  privaten Space offenzulegen (Abschnitt 8).
 - Alle Ebenen sind **Entities** mit demselben Aufbau.
 
 ### 2.2 Entity
@@ -481,7 +481,7 @@ Ohne Aufräumen wächst das Log unbegrenzt.
 
 | Anforderung | Umsetzung im Modell |
 |---|---|
-| Datenminimierung / Privacy by Design (Art. 5, 25) | Server sieht keine Inhalte; Größen-Padding; kein Passwort am Server; Discovery-Tags rotieren |
+| Datenminimierung / Privacy by Design (Art. 5, 25) | Server sieht keine Inhalte; Größen-Padding; kein Passwort am Server; Discovery-Tags rotieren; bei geteilten Spaces nur Account-IDs und Rollen, keine Namen (8.10) |
 | Auskunft & Übertragbarkeit (Art. 15, 20) | Export eines Space als JSON (Entities + Werte) und CSV pro Collection, lokal ohne Server |
 | Löschung (Art. 17) | `DELETE /v1/account` löscht alle Envelopes, Snapshots, Blobs, Geräte. Lokal: Datenbank + Schlüssel löschen (Crypto-Shredding). Tombstones verschwinden per GC. |
 | Besondere Kategorien (Art. 9, Fitness/Gesundheit) | Ende-zu-Ende-Verschlüsselung; optional eigener Space mit eigenem Schlüssel |
@@ -489,11 +489,354 @@ Ohne Aufräumen wächst das Log unbegrenzt.
 
 ---
 
-## 8. Offene Punkte
+## 8. Geteilte Spaces
 
-- **Teilen mit anderen Accounts** (Familien-Einkaufsliste): Space Key mit dem
-  X25519-Key des Mitglieds wrappen, Mitgliederliste als Collection. Format ist
-  vorbereitet (Space Keys, Signaturen, Epochs), Ablauf noch nicht spezifiziert.
+Ziel: Ein Space (z. B. "Familie" mit Einkaufsliste und Haushaltsbuch) wird von mehreren Accounts
+gemeinsam genutzt. Der Server bleibt blind für Inhalte, kann keine Mitglieder einschleusen und
+keine Rechte fälschen. Private Spaces bleiben unverändert.
+
+**Granularität:** Geteilt wird immer ein ganzer Space, nie eine einzelne Collection. Wer eine Liste
+teilen will, legt sie in einem geteilten Space an (bzw. verschiebt sie dorthin, siehe 8.9).
+
+### 8.1 Begriffe
+
+| Begriff | Bedeutung |
+|---|---|
+| **Account-Identität** | Schlüsselpaar, mit dem ein Account gegenüber *anderen* Accounts auftritt |
+| **Gerätezertifikat** | Bestätigung "Gerät X gehört zu Account Y", signiert mit der Account-Identität |
+| **Mitgliederkette** | signiertes, verkettetes Log aller Mitgliedschaftsänderungen eines Space |
+| **Schlüsselpaket** | Space-Schlüssel einer Epoch, verschlüsselt für genau ein Mitglied |
+| **Sicherheitsnummer** | Kurzform des Identitätsschlüssels zum Vergleichen (12 Ziffern) |
+
+### 8.2 Account-Identität & Gerätezertifikate
+
+Bisher kennen sich nur die Geräte *eines* Accounts, und die Geräteliste kommt vom Server (5.5).
+Für fremde Accounts reicht das nicht: Ein Mitglied muss Signaturen von Geräten anderer Accounts
+prüfen können, ohne dem Server zu glauben.
+
+```
+Account Root Key (ARK)
+ ├─ Identity Signing Key   Ed25519 = HKDF(ARK, "account identity sign v1")
+ └─ Identity Exchange Key  X25519  = HKDF(ARK, "account identity exchange v1")
+```
+
+- Beide werden aus dem ARK abgeleitet. Jedes eigene Gerät kennt sie damit automatisch, ohne
+  zusätzlichen Austausch beim Pairing.
+- Jedes Gerät bekommt ein **Gerätezertifikat**:
+
+```rust
+struct DeviceCert {
+    account: AccountId,
+    device: DeviceId,
+    signing_pub: [u8; 32],
+    exchange_pub: [u8; 32],
+    issued_at: u64,
+    signature: [u8; 64],     // Identity Signing Key über alle Felder davor
+}
+```
+
+- Ausgestellt beim Anlegen des Accounts bzw. beim Pairing vom bestehenden Gerät. Der Server
+  speichert die Zertifikate und liefert sie aus (`GET /v1/spaces/{id}/devices`), kann aber keine
+  gültigen erzeugen.
+- **Prüfregel:** Ein Changeset in einem geteilten Space ist gültig, wenn sein Gerät ein Zertifikat
+  hat, das von der Identität eines Mitglieds mit Schreibrecht signiert ist (siehe 8.4).
+- Nebeneffekt: Auch für den eigenen Account ersetzt das die Server-Geräteliste als
+  Vertrauensquelle (schließt die Lücke aus 5.5).
+
+**Sicherheitsnummer** = die ersten 40 Bit von `SHA-256("doe identity" || identity_sign_pub ||
+identity_exchange_pub)` als 12 Dezimalziffern in Dreiergruppen. Wird in der Mitgliederliste
+angezeigt und kann bei Bedarf persönlich verglichen werden.
+
+### 8.3 Space-Schlüssel geteilter Spaces
+
+Private Spaces behalten die HKDF-Ableitung aus dem ARK (5.5). Für geteilte Spaces geht das nicht,
+weil sonst jede Rotation einen neuen ARK aller Beteiligten erfordern würde.
+
+→ **Entscheidung:** Geteilte Spaces haben **zufällige** Space-Schlüssel pro Epoch (wie im
+ursprünglichen Entwurf 5.1). Der Envelope-Header enthält `key_epoch` bereits; das Format der
+Changesets ändert sich nicht.
+
+```rust
+struct KeyPackage {
+    space: EntityId,
+    epoch: u32,
+    recipient: AccountId,
+    sealed: Vec<u8>,          // X25519-SealedBox(recipient.identity_exchange_pub, K[epoch])
+    author_device: DeviceId,
+    signature: [u8; 64],      // Gerätesignatur über alle Felder davor
+}
+
+struct KeyChain {             // einmal pro Epoch, für alle Mitglieder gleich
+    space: EntityId,
+    epoch: u32,
+    nonce: [u8; 24],
+    sealed_prev: Vec<u8>,     // XChaCha20-Poly1305(K[epoch], [K[0], …, K[epoch-1]])
+}
+```
+
+- Wer `K[epoch]` hat, kann über die `KeyChain` alle älteren Schlüssel öffnen. Ein neues Mitglied
+  braucht also nur **ein** Schlüsselpaket und sieht die gesamte Historie.
+- → **Entscheidung:** Neue Mitglieder sehen die vollständige Historie. Für eine Einkaufsliste oder
+  ein Haushaltsbuch ist das erwartet. "Nur ab Beitritt" ist als spätere Option denkbar (neue Epoch
+  ohne `KeyChain` für das neue Mitglied), wird aber nicht vorbereitet.
+- Space-Schlüssel liegen lokal in der SQLCipher-Datenbank (Tabelle `space_keys`), nicht im
+  OS-Schlüsselspeicher.
+
+### 8.4 Mitgliederkette
+
+Die Idee aus der früheren Fassung ("Mitgliederliste als Collection") reicht nicht: Jeder mit dem
+Space-Schlüssel kann jede Collection beschreiben, und LWW kennt keine Rechte. Ein einfaches Mitglied
+könnte sich so selbst zum Admin machen.
+
+| | Collection im Space (LWW) | Mitgliederkette (eigenes Log) |
+|---|---|---|
+| Rechte durchsetzbar | nein, jeder Schreiber kann alles setzen | ja, jeder Eintrag wird gegen den Stand davor geprüft |
+| Reihenfolge eindeutig | nein (gleichzeitige Änderungen) | ja, verkettet über Hashes |
+| Server kann Rechte prüfen | nein (verschlüsselt) | ja (Rollen sind Klartext-Metadaten) |
+| Aufwand | gering | mittel |
+
+→ **Entscheidung:** Mitgliedschaft ist eine eigene, hash-verkettete Kette pro Space.
+Anzeigenamen und andere persönliche Angaben gehören **nicht** hinein, sondern verschlüsselt in eine
+normale Collection "Mitglieder" im Space (`_template = members@1`, Felder: Account-ID, Name).
+
+```rust
+struct MemberKeys {
+    account: AccountId,
+    identity_sign_pub: [u8; 32],
+    identity_exchange_pub: [u8; 32],
+}
+
+enum Role { Admin, Writer, Reader }
+
+enum LogBody {
+    Genesis      { owner: MemberKeys },                         // Ersteller wird Admin
+    Add          { member: MemberKeys, role: Role, invite: [u8; 16] },
+    SetRole      { account: AccountId, role: Role, cutoff: Map<DeviceId, u64> },
+    Remove       { account: AccountId, cutoff: Map<DeviceId, u64> },
+    Leave        { cutoff: Map<DeviceId, u64> },                // nur für sich selbst
+    Rotate       { epoch: u32 },                                // neue Schlüssel-Epoch
+    IdentityChange { new_keys: MemberKeys, sig_new: [u8; 64] }, // nach ARK-Wechsel, siehe 8.8
+    DeleteSpace,
+}
+
+struct LogEntry {
+    space: EntityId,
+    index: u64,               // 0 = Genesis
+    prev_hash: [u8; 32],      // SHA-256 des vorherigen Eintrags (bei Genesis: Nullen)
+    author_device: DeviceId,
+    created_at: u64,
+    body: LogBody,
+    signature: [u8; 64],      // Gerätesignatur; Gerät muss gültiges DeviceCert haben
+}
+```
+
+**Wer darf was:**
+
+| Eintrag | Erlaubt für |
+|---|---|
+| `Add`, `SetRole`, `Remove`, `DeleteSpace` | Admin |
+| `Leave` | jedes Mitglied für sich selbst; nicht der letzte Admin |
+| `Rotate` | Admin und Writer |
+| `IdentityChange` | das Mitglied selbst, signiert mit alter **und** neuer Identität |
+
+**Reihenfolge:** Der Server nimmt einen Eintrag nur an, wenn `index = Länge der Kette` und
+`prev_hash` zum letzten Eintrag passt (Compare-and-Swap). Bei gleichzeitigen Änderungen zweier
+Admins bekommt der zweite `409 Conflict`, lädt die Kette neu und versucht es erneut.
+Clients prüfen die gesamte Kette selbst: Signaturen, Hashes, Rechte jedes Eintrags gegen den
+Stand davor. Der Server kann Einträge zurückhalten, aber keine fälschen oder umordnen.
+
+**`cutoff`:** Beim Entfernen bzw. Herabstufen auf Reader wird festgehalten, bis zu welcher `seq` die
+Geräte des Betroffenen noch schreiben durften (Version Vector des entfernenden Geräts). Spätere
+Changesets dieser Geräte werden von allen Clients verworfen. Was der Betroffene davor offline
+geschrieben, aber noch nicht hochgeladen hat, geht verloren. Das ist für einen Rauswurf akzeptabel.
+
+### 8.5 Einladen
+
+```
+Admin A                         Server                         Eingeladene B
+-------                         ------                         -------------
+erzeugt invite_id (16 B),
+        invite_secret (16 B)
+PUT /v1/invites/{invite_id}
+  { space, expires_at }  ──────►  speichert (TTL 7 Tage)
+schickt Link außerhalb der App
+(Messenger, QR, persönlich):
+  DOEINV1-{server, invite_id,
+           invite_secret, space,
+           A.sicherheitsnummer}
+                                                               öffnet Link
+                                                               req = { B.MemberKeys,
+                                                                       Name verschlüsselt }
+                                ◄──────  POST /v1/invites/{id}/request
+                                         { req, mac = HMAC(invite_secret, req) }
+GET /v1/invites/{id}  ◄─────────
+prüft mac, zeigt:
+"Lisa (123 456 789 012)
+ möchte beitreten – Rolle?"
+A bestätigt:
+  Kette += Add{B, Rolle, invite_id}
+  KeyPackage für B
+  Name in "Mitglieder"-Collection
+  POST …  ───────────────────────►  Mitglied eingetragen,
+                                    Einladung verbraucht
+                                ──────►  B holt Kette + KeyPackage,
+                                         prüft Kette, entschlüsselt K[epoch],
+                                         synchronisiert normal
+```
+
+- **Ein Link, ein Beitritt.** Danach ist die Einladung verbraucht.
+- Der MAC mit `invite_secret` verhindert, dass der Server eine eigene Beitrittsanfrage unterschiebt.
+  Er kennt das Geheimnis nicht.
+- Leitet jemand den Link weiter, sieht A beim Bestätigen den falschen Namen bzw. eine unbekannte
+  Sicherheitsnummer. Deshalb gibt es **keine** automatische Annahme.
+- B prüft beim ersten Laden, dass die Sicherheitsnummer des Genesis- bzw. einladenden Admins zur
+  Nummer im Link passt. So erkennt B einen vom Server untergeschobenen Space.
+- B braucht einen Account auf **demselben** Server. Föderation zwischen Servern ist nicht
+  vorgesehen.
+
+### 8.6 Entfernen, Verlassen, Rotation
+
+1. Admin hängt `Remove { account, cutoff }` an (bzw. das Mitglied selbst `Leave`).
+2. Direkt danach erzeugt dasselbe Gerät eine neue Epoch: zufälliger `K[e+1]`, `Rotate { e+1 }`,
+   `KeyChain` und je ein `KeyPackage` für jedes verbleibende Mitglied.
+   Ist das abgebrochen (Gerät offline), holt es jedes Admin- oder Writer-Gerät nach, das einen
+   `Remove`/`Leave` ohne folgendes `Rotate` sieht.
+3. Ab dem `Rotate` lehnt der Server neue Envelopes mit älterer `key_epoch` ab.
+   Clients verschlüsseln eigene, noch nicht hochgeladene Changesets vor dem Push mit der
+   aktuellen Epoch neu (gleiche `seq`, neue Signatur).
+4. Der entfernte Account bekommt für den Space `403`.
+
+Was der Entfernte bis dahin gesehen hat, behält er lokal. Das lässt sich technisch nicht verhindern
+und wird in der UI beim Entfernen so gesagt.
+
+### 8.7 Rollen
+
+| Rolle | Lesen | Schreiben | Mitglieder verwalten |
+|---|---|---|---|
+| Admin | ja | ja | ja |
+| Writer | ja | ja | nein |
+| Reader | ja | nein | nein |
+
+`Reader` wird **doppelt** durchgesetzt: Der Server nimmt von Reader-Geräten keine Envelopes an, und
+Clients verwerfen Changesets, deren Account laut Kette kein Schreibrecht hat. Ein Reader kann zwar
+technisch verschlüsseln, seine Änderungen erreichen aber niemanden.
+
+Strukturänderungen (Felder, Ansichten) sind normale Schreibvorgänge. Eine feinere Trennung
+("darf Einträge, aber keine Felder ändern") ist nicht vorgesehen.
+
+### 8.8 Geräte & Identitätswechsel
+
+- **Neues eigenes Gerät:** bekommt per Pairing den ARK und damit die Identität. Es lädt die
+  Kette und die Schlüsselpakete des Accounts und hat sofort Zugriff auf alle geteilten Spaces. Die
+  anderen Mitglieder merken nur ein neues Gerätezertifikat.
+- **Eigenes Gerät entfernen:** Das Gerät kennt den ARK und damit die Identität (5.5). Nötig ist ein
+  neuer ARK, damit eine neue Identität, und pro geteiltem Space ein `IdentityChange` (signiert mit
+  alter und neuer Identität) plus `Rotate`. Danach werden Zertifikate der alten Identität ignoriert.
+  - Bekannte Lücke: Das entfernte Gerät könnte schneller sein und selbst ein `IdentityChange`
+    anhängen. Die anderen Mitglieder sehen dann eine geänderte Sicherheitsnummer, und der
+    Betroffene kann den Fall per Admin-`Remove` + neuer Einladung bereinigen. Für v1 akzeptiert.
+
+### 8.9 Space anlegen und Daten verschieben
+
+- **Neuer geteilter Space:** Space-Entity anlegen, `Genesis` mit eigener Identität, `K[0]` zufällig,
+  `KeyPackage` für sich selbst.
+- **Privaten Space teilen** (später): `Rotate` auf eine zufällige Epoch `e+1`, die `KeyChain`
+  enthält die bisherigen HKDF-Schlüssel. Das gibt nur die Schlüssel dieses einen Space preis, nicht
+  den ARK (HKDF ist nicht umkehrbar). Ab dann gilt der Space als geteilt.
+- **Collection in anderen Space verschieben:** Entities gehören fest zu ihrem Space, weil der Space
+  die Verschlüsselungseinheit ist. Verschieben ist daher Kopieren (neue IDs im Ziel-Space) und
+  Löschen im Quell-Space. Verweise (`Ref`) in andere Spaces werden dabei zu `Null` und in der UI
+  gemeldet.
+- **Space löschen:** `DeleteSpace` durch einen Admin. Der Server löscht Envelopes, Kette und
+  Schlüsselpakete. Clients blenden den Space aus und löschen ihn lokal nach Bestätigung.
+  Lokale Kopien anderer Mitglieder kann niemand erzwingen löschen.
+
+### 8.10 Server
+
+Neue bzw. geänderte Tabellen:
+
+```sql
+CREATE TABLE device_certs  (device_id BLOB PRIMARY KEY, account_id BLOB NOT NULL, cert BLOB NOT NULL);
+CREATE TABLE space_members (space_id BLOB, account_id BLOB, role TEXT NOT NULL,
+                            PRIMARY KEY (space_id, account_id));
+CREATE TABLE space_log     (space_id BLOB, idx INTEGER, entry BLOB NOT NULL, hash BLOB NOT NULL,
+                            PRIMARY KEY (space_id, idx));
+CREATE TABLE key_packages  (space_id BLOB, epoch INTEGER, account_id BLOB, package BLOB NOT NULL,
+                            PRIMARY KEY (space_id, epoch, account_id));
+CREATE TABLE key_chains    (space_id BLOB, epoch INTEGER, chain BLOB NOT NULL,
+                            PRIMARY KEY (space_id, epoch));
+CREATE TABLE invites       (id BLOB PRIMARY KEY, space_id BLOB NOT NULL, request BLOB,
+                            expires_at INTEGER NOT NULL);
+```
+
+- `spaces.account_id` bleibt als "privat, gehört Account X". Geteilte Spaces haben dort `NULL`,
+  der Zugriff ergibt sich aus `space_members`. `space_members` ist ein Cache, den der Server beim
+  Anhängen an die Kette pflegt. Er prüft die Rechte dabei selbst nach denselben Regeln wie die
+  Clients.
+- Zugriffsprüfung: privat → wie bisher; geteilt → Account ist Mitglied (Lesen) bzw. Mitglied mit
+  Admin/Writer und aktuelle `key_epoch` (Schreiben).
+
+Neue Endpunkte (Bodies CBOR):
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| POST | `/v1/spaces/{id}/log` | Eintrag anhängen (CAS über `index`), optional mit KeyPackages und KeyChain in derselben Transaktion |
+| GET | `/v1/spaces/{id}/log?after=N` | Kette ab Index |
+| GET | `/v1/spaces/{id}/keys` | eigene Schlüsselpakete + KeyChains |
+| GET | `/v1/spaces/{id}/devices` | Gerätezertifikate aller Mitglieder |
+| PUT | `/v1/devices/{id}/cert` | eigenes Gerätezertifikat hinterlegen |
+| PUT/GET | `/v1/invites/{id}` | Einladung anlegen / Anfrage abholen (Admin) |
+| POST | `/v1/invites/{id}/request` | Beitrittsanfrage (eingeladener Account) |
+
+`GET /v1/spaces` liefert zusätzlich die geteilten Spaces mit eigener Rolle.
+
+**Was der Server zusätzlich sieht:** welche Accounts in welchem Space Mitglied sind, ihre Rollen und
+Identitäts-Public-Keys, Zeitpunkte von Beitritt und Rotation. **Nicht:** Namen der Mitglieder oder
+des Space, Inhalte.
+
+### 8.11 Client
+
+- **Store:** neue Tabellen `space_keys (space, epoch, key)`, `space_log (space, idx, entry)`,
+  `device_certs`. Ein Space ist "geteilt", wenn eine Kette existiert.
+- **Sync-Reihenfolge pro geteiltem Space:** Kette nachladen und prüfen → Schlüssel nachladen →
+  Zertifikate nachladen → Envelopes wie bisher. Ein Envelope, dessen Gerät oder Epoch noch unbekannt
+  ist, wird zurückgestellt statt verworfen und beim nächsten Durchlauf erneut geprüft.
+- **UI:**
+  - Space-Umschalter in der Seitenleiste (Privat, Familie, …)
+  - "Teilen" → Einladungslink + QR, Rolle vorwählen
+  - Beitrittsanfrage bestätigen (Name, Sicherheitsnummer, Rolle)
+  - Mitgliederliste mit Rollen, Entfernen, Verlassen, Sicherheitsnummer
+  - Hinweis bei geänderter Sicherheitsnummer eines Mitglieds
+
+### 8.12 Umsetzungsreihenfolge
+
+1. **Identität & Zertifikate:** Ableitung, `DeviceCert` bei Account-Anlage und Pairing, Server
+   speichert und liefert Zertifikate, Clients prüfen Signaturen gegen Zertifikate statt gegen die
+   Server-Geräteliste.
+2. **Kette & Schlüssel:** `LogEntry`/`KeyPackage`/`KeyChain` in `crates/proto`, Prüfung der Kette als
+   reine Funktion (`fn validate(chain) -> Result<MemberState>`), ausführlich getestet.
+3. **Server:** Tabellen, Endpunkte, Rechteprüfung, CAS.
+4. **Einladung & Sync** geteilter Spaces, Space-Umschalter in der App.
+5. **Entfernen, Verlassen, Rotation**, Neuverschlüsselung ausstehender Changesets.
+6. **Reader-Rolle**, QR-Code, Hinweise bei geänderter Sicherheitsnummer.
+
+Tests, die es mindestens geben muss:
+- Writer hängt `SetRole` an → Server und Clients lehnen ab.
+- Zwei Admins ändern gleichzeitig → einer bekommt `409`, nach Neuladen sind beide Änderungen drin.
+- Server unterschiebt Beitrittsanfrage ohne gültigen MAC → wird nicht angezeigt.
+- Entferntes Mitglied pusht danach mit alter Epoch → `403`. Ein manipulierter Server, der das
+  Envelope trotzdem verteilt → Clients verwerfen es (`cutoff`).
+- Neues Mitglied sieht nach Beitritt die vollständige Historie über mehrere Epochs.
+- Offline-Writer hat Changesets mit alter Epoch und erfährt erst beim Sync von der Rotation →
+  Neuverschlüsselung, nichts geht verloren.
+
+---
+
+## 9. Offene Punkte
+
+- **Geteilte Spaces:** spezifiziert in Abschnitt 8, noch nicht umgesetzt. Offen:
+  "Historie erst ab Beitritt", Föderation zwischen Servern, feinere Rechte als
+  Admin/Writer/Reader.
 - **OR-Set für MultiEnum**, falls LWW in der Praxis stört.
 - **Undo/Verlauf**: das Changeset-Log erlaubt "Änderungsverlauf eines Eintrags";
   UI dafür offen.
